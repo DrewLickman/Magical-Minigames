@@ -1,9 +1,23 @@
-export default function GamePage() {
+import { Suspense } from "react";
+import { GameClient } from "./GameClient";
+
+type PageParams = { seed: string };
+
+export default async function GamePage({
+  params,
+}: {
+  params: Promise<PageParams>;
+}) {
+  const { seed } = await params;
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-1 items-center justify-center px-4 py-16">
-      <h1 className="text-3xl font-semibold text-[var(--foreground,currentColor)]">
-        Imposter Game
-      </h1>
-    </div>
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-lg px-4 py-10 text-[var(--muted,currentColor)]">
+          Loading…
+        </div>
+      }
+    >
+      <GameClient encodedSeed={seed} />
+    </Suspense>
   );
 }

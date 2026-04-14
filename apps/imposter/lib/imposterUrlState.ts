@@ -27,6 +27,23 @@ export function readEntryQuery(search: string): {
   };
 }
 
-export function buildGamePath(lobby: string): string {
-  return `/game/${encodeURIComponent(normalizeLobbySeed(lobby))}`;
+export type BuildGamePathOptions = {
+  player: number;
+  players: number;
+  imposters: number;
+};
+
+export function buildGamePath(
+  lobby: string,
+  options?: BuildGamePathOptions,
+): string {
+  const normalized = normalizeLobbySeed(lobby);
+  const path = `/game/${encodeURIComponent(normalized)}`;
+  if (!options) return path;
+  const query = new URLSearchParams({
+    player: String(options.player),
+    players: String(options.players),
+    imposters: String(options.imposters),
+  });
+  return `${path}?${query.toString()}`;
 }
