@@ -33,6 +33,12 @@ export type BuildGamePathOptions = {
   imposters: number;
 };
 
+/** Lobby entry path with pre-filled code (used when leaving the game). */
+export function buildHomePathWithLobby(lobby: string): string {
+  const normalized = normalizeLobbySeed(lobby);
+  return `/?lobby=${encodeURIComponent(normalized)}`;
+}
+
 export function buildGamePath(
   lobby: string,
   options?: BuildGamePathOptions,

@@ -3,17 +3,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { readPlayerProfile } from "@minigames/shared";
-import {
-  IMPOSTERS_MAX,
-  IMPOSTERS_MIN,
-  isValidRoundSettings,
-  PLAYER_SEAT_MAX,
-  PLAYER_SEAT_MIN,
-  PLAYERS_MAX,
-  PLAYERS_MIN,
-  type RoundSettings,
-} from "@/lib/imposterGameParams";
+import { isValidRoundSettings, type RoundSettings } from "@/lib/imposterGameParams";
 import { buildGamePath, readEntryQuery } from "@/lib/imposterUrlState";
+import { ImposterLobbyMenu } from "./ImposterLobbyMenu";
+
+const PLAYER_COUNTS = [3, 4, 5, 6] as const;
+const IMPOSTER_COUNTS = [1, 2] as const;
+
+function countButtonClass(selected: boolean): string {
+  const base =
+    "min-w-[2.75rem] rounded-lg border px-3 py-2 text-sm font-semibold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]";
+  if (selected) {
+    return `${base} border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_22%,var(--surface))] text-[var(--foreground)]`;
+  }
+  return `${base} border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:border-[var(--muted)]`;
+}
 
 export default function Home() {
   const router = useRouter();
@@ -64,16 +68,19 @@ export default function Home() {
   };
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center px-3 py-6 sm:px-4 sm:py-10">
-      <main className="w-full max-w-xl space-y-6 rounded-xl border border-[var(--border,currentColor)] bg-[var(--surface,transparent)] p-4 shadow-sm sm:p-6">
+    <div className="relative flex flex-1 flex-col items-center justify-center px-3 py-6 sm:px-4 sm:py-10">
+      <div className="absolute right-3 top-4 z-30 sm:right-4 sm:top-6">
+        <ImposterLobbyMenu />
+      </div>
+      <main className="w-full max-w-xl space-y-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm sm:p-6">
         <div className="text-center">
           <h1 className="text-2xl font-semibold tracking-tight">Imposter</h1>
-          <p className="mt-2 text-sm text-[var(--muted,currentColor)]">
+          <p className="mt-2 text-sm text-[var(--muted)]">
             Enter the lobby code and your seat. Each device shows the same
             confirmation word and a secret word that differs for imposters.
           </p>
           {hubDisplayName ? (
-            <p className="mt-1 text-sm text-[var(--muted,currentColor)]">
+            <p className="mt-1 text-sm text-[var(--muted)]">
               Playing as {hubDisplayName}
             </p>
           ) : null}
@@ -84,101 +91,86 @@ export default function Home() {
             <label htmlFor="lobby-seed" className="block text-sm font-medium">
               Lobby code
             </label>
-            <input
-              id="lobby-seed"
-              autoComplete="off"
-              placeholder="e.g. SHADOW-7"
-              value={lobbySeed}
-              onChange={(event) =>
-                setLobbySeed(event.target.value.toUpperCase())
-              }
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && canJoin) joinLobby();
-              }}
-              className="w-full rounded-lg border border-[var(--border,currentColor)] bg-[var(--background,transparent)] px-3 py-2 font-mono uppercase tracking-wide text-[var(--foreground,currentColor)] outline-none ring-[var(--accent,currentColor)] focus:ring-2"
-            />
+            <div className="relative">
+              <input
+                id="lobby-seed"
+                autoComplete="off"
+                placeholder="e.g. SHADOW-7"
+                value={lobbySeed}
+                onChange={(event) =>
+                  setLobbySeed(event.target.value.toUpperCase())
+                }
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && canJoin) joinLobby();
+                }}
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] py-2 pl-3 pr-10 font-mono uppercase tracking-wide text-[var(--foreground)] outline-none ring-[var(--accent)] focus:ring-2"
+              />
+              {lobbySeed.length > 0 ? (
+                <button
+                  type="button"
+                  aria-label="Clear lobby code"
+                  onClick={() => setLobbySeed("")}
+                  className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-lg leading-none text-[var(--muted)] hover:bg-[color-mix(in_srgb,var(--foreground)_08%,transparent)] hover:text-[var(--foreground)]"
+                >
+                  ×
+                </button>
+              ) : null}
+            </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="space-y-2">
-              <label
-                htmlFor="player-seat"
-                className="block text-sm font-medium"
-              >
-                Your seat (1–6)
-              </label>
-              <select
-                id="player-seat"
-                value={playerSeat}
-                onChange={(e) =>
-                  setPlayerSeat(Number.parseInt(e.target.value, 10))
-                }
-                className="w-full rounded-lg border border-[var(--border,currentColor)] bg-[var(--background,transparent)] px-3 py-2 text-sm text-[var(--foreground,currentColor)] outline-none ring-[var(--accent,currentColor)] focus:ring-2"
-              >
-                {Array.from(
-                  { length: PLAYER_SEAT_MAX - PLAYER_SEAT_MIN + 1 },
-                  (_, i) => PLAYER_SEAT_MIN + i,
-                ).map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
+          <div className="space-y-2">
+            <span className="block text-sm font-medium">Total Player Count</span>
+            <div className="flex flex-wrap gap-2">
+              {PLAYER_COUNTS.map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  className={countButtonClass(players === n)}
+                  onClick={() => {
+                    setPlayers(n);
+                    setPlayerSeat((s) => (s > n ? n : s));
+                  }}
+                >
+                  {n}
+                </button>
+              ))}
             </div>
-            <div className="space-y-2">
-              <label
-                htmlFor="total-players"
-                className="block text-sm font-medium"
-              >
-                Players at table
-              </label>
-              <select
-                id="total-players"
-                value={players}
-                onChange={(e) =>
-                  setPlayers(Number.parseInt(e.target.value, 10))
-                }
-                className="w-full rounded-lg border border-[var(--border,currentColor)] bg-[var(--background,transparent)] px-3 py-2 text-sm text-[var(--foreground,currentColor)] outline-none ring-[var(--accent,currentColor)] focus:ring-2"
-              >
-                {Array.from(
-                  { length: PLAYERS_MAX - PLAYERS_MIN + 1 },
-                  (_, i) => PLAYERS_MIN + i,
-                ).map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
+          </div>
+
+          <div className="space-y-2">
+            <span className="block text-sm font-medium">Imposter Count</span>
+            <div className="flex flex-wrap gap-2">
+              {IMPOSTER_COUNTS.map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  className={countButtonClass(imposters === n)}
+                  onClick={() => setImposters(n)}
+                >
+                  {n}
+                </button>
+              ))}
             </div>
-            <div className="space-y-2">
-              <label
-                htmlFor="imposter-count"
-                className="block text-sm font-medium"
-              >
-                Imposters
-              </label>
-              <select
-                id="imposter-count"
-                value={imposters}
-                onChange={(e) =>
-                  setImposters(Number.parseInt(e.target.value, 10))
-                }
-                className="w-full rounded-lg border border-[var(--border,currentColor)] bg-[var(--background,transparent)] px-3 py-2 text-sm text-[var(--foreground,currentColor)] outline-none ring-[var(--accent,currentColor)] focus:ring-2"
-              >
-                {Array.from(
-                  { length: IMPOSTERS_MAX - IMPOSTERS_MIN + 1 },
-                  (_, i) => IMPOSTERS_MIN + i,
-                ).map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
+          </div>
+
+          <div className="space-y-2">
+            <span className="block text-sm font-medium">Seat Number</span>
+            <div className="flex flex-wrap gap-2">
+              {Array.from({ length: players }, (_, i) => i + 1).map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  className={countButtonClass(playerSeat === n)}
+                  onClick={() => setPlayerSeat(n)}
+                >
+                  {n}
+                </button>
+              ))}
             </div>
           </div>
 
           {!isValidRoundSettings(settings) && trimmedLobby.length > 0 ? (
-            <p className="text-sm text-[var(--muted,currentColor)]">
+            <p className="text-sm text-[var(--muted)]">
               Seat must be between 1 and the number of players, and there must
               be at least one non-imposter (players greater than imposters).
             </p>
@@ -188,7 +180,7 @@ export default function Home() {
             type="button"
             disabled={!canJoin}
             onClick={joinLobby}
-            className="w-full rounded-lg bg-[var(--accent,currentColor)] px-4 py-2.5 text-sm font-medium text-[var(--accent-foreground,currentColor)] transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+            className="w-full rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-[var(--accent-foreground)] transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
           >
             Enter game
           </button>

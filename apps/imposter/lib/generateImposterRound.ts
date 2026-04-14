@@ -59,6 +59,7 @@ export function generateImposterRound(
   );
 
   const imposterSeats = pickImposterSeats(players, imposters, rand);
+  // All imposter seats share the same fake word (not one draw per imposter).
   const secretWord = imposterSeats.has(playerSeat)
     ? imposterSecret
     : innocentSecret;
