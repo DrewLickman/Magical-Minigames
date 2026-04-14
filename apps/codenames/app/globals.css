@@ -1,0 +1,214 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f4f4f5;
+  --foreground: #18181b;
+  --surface: #ffffff;
+  --muted: #71717a;
+  --border: #d4d4d8;
+  --accent: #2563eb;
+  --accent-foreground: #ffffff;
+  --role-red: #f87171;
+  --role-blue: #60a5fa;
+  --role-neutral: #d4d4d8;
+  --role-assassin: #18181b;
+  --tile-hidden: #fafafa;
+  --tile-hidden-border: #d4d4d8;
+  --fg-on-role: #18181b;
+  --fg-on-assassin: #fafafa;
+  --lobby-red-bg: color-mix(in srgb, var(--role-red) 22%, var(--surface));
+  --lobby-red-border: color-mix(in srgb, var(--role-red) 55%, var(--border));
+  --lobby-red-fg: var(--foreground);
+  --lobby-blue-bg: color-mix(in srgb, var(--role-blue) 22%, var(--surface));
+  --lobby-blue-border: color-mix(in srgb, var(--role-blue) 55%, var(--border));
+  --lobby-blue-fg: var(--foreground);
+  --reveal-ring-red: color-mix(in srgb, var(--role-red) 85%, var(--foreground));
+  --reveal-ring-blue: color-mix(in srgb, var(--role-blue) 85%, var(--foreground));
+  --reveal-ring-neutral: color-mix(in srgb, var(--role-neutral) 70%, var(--foreground));
+  --reveal-ring-assassin: color-mix(in srgb, var(--role-assassin) 40%, var(--role-red));
+  --reveal-glow-red: color-mix(in srgb, var(--role-red) 65%, transparent);
+  --reveal-glow-blue: color-mix(in srgb, var(--role-blue) 65%, transparent);
+  --reveal-glow-neutral: color-mix(in srgb, var(--role-neutral) 55%, transparent);
+  --reveal-glow-assassin: color-mix(in srgb, var(--foreground) 35%, transparent);
+  --reveal-bg-red: color-mix(in srgb, var(--role-red) 38%, var(--surface));
+  --reveal-bg-blue: color-mix(in srgb, var(--role-blue) 38%, var(--surface));
+  --reveal-bg-neutral: color-mix(in srgb, var(--role-neutral) 42%, var(--surface));
+  --reveal-bg-assassin: color-mix(in srgb, var(--role-assassin) 45%, var(--surface));
+  --staged-ring: color-mix(in srgb, var(--accent-foreground) 96%, var(--surface));
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #09090b;
+    --foreground: #fafafa;
+    --surface: #18181b;
+    --muted: #a1a1aa;
+    --border: #3f3f46;
+    --accent: #3b82f6;
+    --accent-foreground: #fafafa;
+    --role-red: #dc2626;
+    --role-blue: #2563eb;
+    --role-neutral: #52525b;
+    --role-assassin: #09090b;
+    --tile-hidden: #27272a;
+    --tile-hidden-border: #3f3f46;
+    --fg-on-role: #fafafa;
+    --fg-on-assassin: #fafafa;
+    --lobby-red-bg: color-mix(in srgb, var(--role-red) 28%, var(--surface));
+    --lobby-red-border: color-mix(in srgb, var(--role-red) 50%, var(--border));
+    --lobby-red-fg: var(--foreground);
+    --lobby-blue-bg: color-mix(in srgb, var(--role-blue) 28%, var(--surface));
+    --lobby-blue-border: color-mix(in srgb, var(--role-blue) 50%, var(--border));
+    --lobby-blue-fg: var(--foreground);
+    --reveal-ring-red: color-mix(in srgb, var(--role-red) 80%, white);
+    --reveal-ring-blue: color-mix(in srgb, var(--role-blue) 80%, white);
+    --reveal-ring-neutral: color-mix(in srgb, var(--role-neutral) 75%, white);
+    --reveal-ring-assassin: color-mix(in srgb, var(--foreground) 60%, var(--role-red));
+    --reveal-glow-red: color-mix(in srgb, var(--role-red) 55%, transparent);
+    --reveal-glow-blue: color-mix(in srgb, var(--role-blue) 55%, transparent);
+    --reveal-glow-neutral: color-mix(in srgb, var(--role-neutral) 50%, transparent);
+    --reveal-glow-assassin: color-mix(in srgb, var(--foreground) 40%, transparent);
+    --reveal-bg-red: color-mix(in srgb, var(--role-red) 32%, var(--surface));
+    --reveal-bg-blue: color-mix(in srgb, var(--role-blue) 32%, var(--surface));
+    --reveal-bg-neutral: color-mix(in srgb, var(--role-neutral) 36%, var(--surface));
+    --reveal-bg-assassin: color-mix(in srgb, var(--role-assassin) 55%, var(--surface));
+    --staged-ring: color-mix(in srgb, var(--accent-foreground) 94%, var(--surface));
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+@layer components {
+  button.board-cell--hidden {
+    background-color: var(--tile-hidden);
+    color: var(--foreground);
+    border-color: var(--tile-hidden-border);
+  }
+
+  button.board-cell--staged {
+    outline: 2px dashed var(--staged-ring);
+    outline-offset: 2px;
+  }
+
+  button.board-cell--identity-red {
+    background-color: var(--role-red);
+    color: var(--fg-on-role);
+    border-color: transparent;
+  }
+
+  button.board-cell--identity-blue {
+    background-color: var(--role-blue);
+    color: var(--fg-on-role);
+    border-color: transparent;
+  }
+
+  button.board-cell--identity-neutral {
+    background-color: var(--role-neutral);
+    color: var(--fg-on-role);
+    border-color: transparent;
+  }
+
+  button.board-cell--identity-assassin {
+    background-color: var(--role-assassin);
+    color: var(--fg-on-assassin);
+    border-color: transparent;
+  }
+
+  button.board-cell--revealed-red {
+    background-color: var(--reveal-bg-red);
+    color: var(--fg-on-role);
+    border-color: var(--reveal-ring-red);
+    box-shadow:
+      0 0 0 2px var(--reveal-ring-red),
+      0 0 18px 3px var(--reveal-glow-red);
+  }
+
+  button.board-cell--revealed-blue {
+    background-color: var(--reveal-bg-blue);
+    color: var(--fg-on-role);
+    border-color: var(--reveal-ring-blue);
+    box-shadow:
+      0 0 0 2px var(--reveal-ring-blue),
+      0 0 18px 3px var(--reveal-glow-blue);
+  }
+
+  button.board-cell--revealed-neutral {
+    background-color: var(--reveal-bg-neutral);
+    color: var(--fg-on-role);
+    border-color: var(--reveal-ring-neutral);
+    box-shadow:
+      0 0 0 2px var(--reveal-ring-neutral),
+      0 0 16px 2px var(--reveal-glow-neutral);
+  }
+
+  button.board-cell--revealed-assassin {
+    background-color: var(--reveal-bg-assassin);
+    color: var(--fg-on-assassin);
+    border-color: var(--reveal-ring-assassin);
+    box-shadow:
+      0 0 0 2px var(--reveal-ring-assassin),
+      0 0 20px 4px var(--reveal-glow-assassin);
+  }
+
+  /* Spymaster: full identity fills with same ring/glow as host revealed tiles */
+  [data-board-view="spymaster"] button.board-cell--identity-red {
+    border: 2px solid var(--reveal-ring-red);
+    box-shadow:
+      0 0 0 2px var(--reveal-ring-red),
+      0 0 18px 3px var(--reveal-glow-red);
+  }
+
+  [data-board-view="spymaster"] button.board-cell--identity-blue {
+    border: 2px solid var(--reveal-ring-blue);
+    box-shadow:
+      0 0 0 2px var(--reveal-ring-blue),
+      0 0 18px 3px var(--reveal-glow-blue);
+  }
+
+  [data-board-view="spymaster"] button.board-cell--identity-neutral {
+    border: 2px solid var(--reveal-ring-neutral);
+    box-shadow:
+      0 0 0 2px var(--reveal-ring-neutral),
+      0 0 16px 2px var(--reveal-glow-neutral);
+  }
+
+  [data-board-view="spymaster"] button.board-cell--identity-assassin {
+    border: 2px solid var(--reveal-ring-assassin);
+    box-shadow:
+      0 0 0 2px var(--reveal-ring-assassin),
+      0 0 20px 4px var(--reveal-glow-assassin);
+  }
+
+  .turn-fill-red {
+    background-color: var(--role-red);
+  }
+
+  .turn-fill-blue {
+    background-color: var(--role-blue);
+  }
+
+  .rules-dialog::backdrop {
+    background-color: color-mix(in srgb, var(--foreground) 35%, transparent);
+  }
+
+  .rules-dialog {
+    max-width: min(36rem, calc(100vw - 2rem));
+    border-radius: 0.75rem;
+    border: 1px solid var(--border);
+    background-color: var(--surface);
+    color: var(--foreground);
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 12px 40px color-mix(in srgb, var(--foreground) 18%, transparent);
+  }
+}

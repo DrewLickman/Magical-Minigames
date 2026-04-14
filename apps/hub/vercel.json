@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/codenames",
+      "destination": "https://YOUR_CODENAMES_DEPLOYMENT.vercel.app/codenames"
+    },
+    {
+      "source": "/codenames/:path*",
+      "destination": "https://YOUR_CODENAMES_DEPLOYMENT.vercel.app/codenames/:path*"
+    }
+  ]
+}

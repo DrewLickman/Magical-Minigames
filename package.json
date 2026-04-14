@@ -1,0 +1,12 @@
+{
+  "name": "minigames",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:hub": "npm run dev --workspace=hub",
+    "dev:codenames": "npm run dev --workspace=codenames"
+  }
+}
