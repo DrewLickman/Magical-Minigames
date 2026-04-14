@@ -29,6 +29,16 @@ postLog({
   timestamp: Date.now(),
 });
 // #endregion
+console.log(
+  "[debug:6b0f53:H1]",
+  JSON.stringify({
+    cwd: process.cwd(),
+    hasRootAppDir: fs.existsSync("app"),
+    hasRootPagesDir: fs.existsSync("pages"),
+    nodeEnv: process.env.NODE_ENV || null,
+    vercel: process.env.VERCEL || null,
+  })
+);
 
 const child = spawn(
   process.platform === "win32" ? "npm.cmd" : "npm",
@@ -59,11 +69,24 @@ child.on("exit", (code) => {
     timestamp: Date.now(),
   });
   // #endregion
-
-  if ((code ?? 1) === 0 && fs.existsSync(workspaceBuildDir)) {
-    if (fs.existsSync(rootBuildDir)) fs.rmSync(rootBuildDir, { recursive: true, force: true });
-    fs.cpSync(workspaceBuildDir, rootBuildDir, { recursive: true });
-  }
+  console.log(
+    "[debug:6b0f53:H6]",
+    JSON.stringify({
+      code,
+      workspaceBuildDirExists: fs.existsSync(workspaceBuildDir),
+      rootBuildDirExists: fs.existsSync(rootBuildDir),
+      workspaceRoutesManifestExists: fs.existsSync(
+        `${workspaceBuildDir}/routes-manifest.json`
+      ),
+      rootRoutesManifestExists: fs.existsSync(`${rootBuildDir}/routes-manifest.json`),
+      workspaceGlobalErrorFunctionExists: fs.existsSync(
+        `${workspaceBuildDir}/output/functions/_global-error.func`
+      ),
+      workspaceGlobalErrorDirExists: fs.existsSync(
+        `${workspaceBuildDir}/output/functions/_global-error`
+      ),
+    })
+  );
 
   // #region agent log
   postLog({
@@ -74,11 +97,26 @@ child.on("exit", (code) => {
     message: "Hub workspace build exited",
     data: {
       code,
-      rootRoutesManifestExistsAfterCopy: fs.existsSync(
+      rootRoutesManifestExistsAfterBuild: fs.existsSync(
         `${rootBuildDir}/routes-manifest.json`
+      ),
+      workspaceRoutesManifestExistsAfterBuild: fs.existsSync(
+        `${workspaceBuildDir}/routes-manifest.json`
       ),
     },
     timestamp: Date.now(),
   }).finally(() => process.exit(code ?? 1));
   // #endregion
+  console.log(
+    "[debug:6b0f53:H5]",
+    JSON.stringify({
+      code,
+      rootRoutesManifestExistsAfterBuild: fs.existsSync(
+        `${rootBuildDir}/routes-manifest.json`
+      ),
+      workspaceRoutesManifestExistsAfterBuild: fs.existsSync(
+        `${workspaceBuildDir}/routes-manifest.json`
+      ),
+    })
+  );
 });
