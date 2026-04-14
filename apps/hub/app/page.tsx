@@ -34,17 +34,13 @@ export default function Home() {
     if (!canJoin) return;
     writePlayerProfile(profile);
     const displayName = profile.displayName.trim() || undefined;
-    const codenamesBase = process.env.NEXT_PUBLIC_CODENAMES_URL?.trim() ?? "";
-    const imposterBase = process.env.NEXT_PUBLIC_IMPOSTER_URL?.trim() ?? "";
     const url =
       gameId === "codenames"
         ? getCodenamesEntryUrl({
-            codenamesBase,
             lobbyCode: trimmedLobby,
             displayName,
           })
         : getImposterEntryUrl({
-            imposterBase,
             lobbyCode: trimmedLobby,
             displayName,
           });

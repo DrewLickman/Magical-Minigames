@@ -16,11 +16,12 @@ npm run dev:hub       # Hub on port 3000
 npm run dev:codenames # Codenames on port 3001
 ```
 
-Configure local envs for seamless same-origin navigation (`/codenames` via hub):
+Configure local envs for seamless same-origin navigation (`/codenames` and `/imposter` via hub):
 
 ```bash
 # apps/hub/.env.local
-NEXT_PUBLIC_CODENAMES_URL=
+CODENAMES_DEV_ORIGIN=http://localhost:3001
+IMPOSTER_DEV_ORIGIN=http://localhost:3002
 ```
 
 ```bash
@@ -28,16 +29,26 @@ NEXT_PUBLIC_CODENAMES_URL=
 NEXT_PUBLIC_BASE_PATH=/codenames
 ```
 
-Then open [http://localhost:3000](http://localhost:3000). Joining Codenames routes to `http://localhost:3000/codenames?...` while the hub dev proxy forwards requests to Codenames on port `3001`.
+```bash
+# apps/imposter/.env.local
+NEXT_PUBLIC_BASE_PATH=/imposter
+```
 
-Leave `NEXT_PUBLIC_CODENAMES_URL` unset in production on the hub when using path-based routing to Codenames on the same domain (see below).
+Then open [http://localhost:3000](http://localhost:3000). Joining routes to same-origin paths (`/codenames` and `/imposter`) while the hub dev proxy forwards requests to app-specific dev servers.
 
-## Vercel (two projects, one public URL)
+## Vercel (three projects, one public hub URL)
 
-1. **Codenames project** — Root Directory: `apps/codenames`. Set:
+1. **Hub project** — Root Directory: `apps/hub`.
+2. **Codenames project** — Root Directory: `apps/codenames`. Set:
    - `NEXT_PUBLIC_BASE_PATH=/codenames`
-2. **Hub project** — Root Directory: `apps/hub`. Connect your production domain here.
-3. Edit [`vercel.json`](./vercel.json): replace `YOUR_CODENAMES_DEPLOYMENT` with your Codenames deployment hostname (no `https://` in the pattern — it is included in the JSON `destination` field as shown).
-4. On the hub project, do **not** set `NEXT_PUBLIC_CODENAMES_URL` (or set it empty) so the hub builds links as `/codenames?lobby=...` and shares `localStorage` with the proxied Codenames app.
+3. **Imposter project** — Root Directory: `apps/imposter`. Set:
+   - `NEXT_PUBLIC_BASE_PATH=/imposter`
+4. On the **Hub** project, set:
+   - `CODENAMES_PROD_ORIGIN=https://<codenames-production-domain>`
+   - `IMPOSTER_PROD_ORIGIN=https://<imposter-production-domain>`
 
-After deploy, confirm `/codenames/_next/static/...` loads in the browser Network tab.
+Routing mode is now always same-origin from Hub:
+- Join links are generated as `/codenames?...` or `/imposter?...`.
+- Hub rewrites those routes to the configured production origins.
+
+See [`docs/vercel-deployments.md`](../../docs/vercel-deployments.md) for the runbook and smoke-test checklist.

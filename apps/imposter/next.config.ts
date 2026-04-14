@@ -7,10 +7,6 @@ const monorepoRoot = path.resolve(appDir, "../..");
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH?.trim() || "/imposter";
 
-// #region agent log
-fetch("http://127.0.0.1:7622/ingest/1302b181-d6d7-4b6e-bbe5-61c8fc200112",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"6b0f53"},body:JSON.stringify({sessionId:"6b0f53",runId:process.env.VERCEL_GIT_COMMIT_SHA||`local-${Date.now()}`,hypothesisId:"H4",location:"apps/imposter/next.config.ts:11",message:"Imposter next config evaluated",data:{cwd:process.cwd(),nodeEnv:process.env.NODE_ENV||null,basePath},timestamp:Date.now()})}).catch(()=>{});
-// #endregion
-
 const nextConfig: NextConfig = {
   basePath: basePath || undefined,
   transpilePackages: ["@minigames/shared"],

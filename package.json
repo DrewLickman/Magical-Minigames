@@ -10,7 +10,7 @@
     "dev:hub": "npm run dev --workspace=hub",
     "dev:codenames": "npm run dev --workspace=codenames",
     "dev:imposter": "npm run dev --workspace=imposter",
-    "vercel-build": "node ./scripts/vercel-build.mjs"
+    "smoke:routes": "node ./scripts/smoke-routes.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

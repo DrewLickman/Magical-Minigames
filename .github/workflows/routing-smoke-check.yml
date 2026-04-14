@@ -1,0 +1,35 @@
+name: Routing Smoke Check
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    env:
+      HUB_URL: ${{ secrets.HUB_URL }}
+      CODENAMES_URL: ${{ secrets.CODENAMES_URL }}
+      IMPOSTER_URL: ${{ secrets.IMPOSTER_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate smoke test env
+        run: |
+          test -n "$HUB_URL"
+          test -n "$CODENAMES_URL"
+          test -n "$IMPOSTER_URL"
+
+      - name: Run routing smoke checks
+        run: npm run smoke:routes
