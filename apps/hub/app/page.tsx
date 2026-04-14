@@ -1,19 +1,18 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   defaultPlayerProfile,
   getCodenamesEntryUrl,
+  getImposterEntryUrl,
   readPlayerProfile,
   writePlayerProfile,
   type PlayerProfile,
 } from "@minigames/shared";
 
-type GameId = "codenames";
+type GameId = "codenames" | "imposter";
 
 export default function Home() {
-  const router = useRouter();
   const [profile, setProfile] = useState<PlayerProfile>(defaultPlayerProfile);
   const [lobbyCode, setLobbyCode] = useState("");
   const [gameId, setGameId] = useState<GameId>("codenames");
@@ -32,20 +31,24 @@ export default function Home() {
   const canJoin = trimmedLobby.length > 0;
 
   const join = () => {
-    if (!canJoin || gameId !== "codenames") return;
+    if (!canJoin) return;
     writePlayerProfile(profile);
-    const codenamesBase =
-      process.env.NEXT_PUBLIC_CODENAMES_URL?.trim() ?? "";
-    const url = getCodenamesEntryUrl({
-      codenamesBase,
-      lobbyCode: trimmedLobby,
-      displayName: profile.displayName.trim() || undefined,
-    });
-    if (url.startsWith("http")) {
-      window.location.assign(url);
-      return;
-    }
-    router.push(url);
+    const displayName = profile.displayName.trim() || undefined;
+    const codenamesBase = process.env.NEXT_PUBLIC_CODENAMES_URL?.trim() ?? "";
+    const imposterBase = process.env.NEXT_PUBLIC_IMPOSTER_URL?.trim() ?? "";
+    const url =
+      gameId === "codenames"
+        ? getCodenamesEntryUrl({
+            codenamesBase,
+            lobbyCode: trimmedLobby,
+            displayName,
+          })
+        : getImposterEntryUrl({
+            imposterBase,
+            lobbyCode: trimmedLobby,
+            displayName,
+          });
+    window.location.assign(url);
   };
 
   return (
@@ -114,6 +117,7 @@ export default function Home() {
               className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-[var(--foreground)] outline-none ring-[var(--accent)] focus:ring-2"
             >
               <option value="codenames">Codenames</option>
+              <option value="imposter">Imposter</option>
             </select>
           </div>
 
@@ -130,7 +134,7 @@ export default function Home() {
               value={lobbyCode}
               onChange={(e) => setLobbyCode(e.target.value.toUpperCase())}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && canJoin && gameId === "codenames") {
+                if (e.key === "Enter" && canJoin) {
                   join();
                 }
               }}

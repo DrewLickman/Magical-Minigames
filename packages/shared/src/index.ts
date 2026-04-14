@@ -6,3 +6,4 @@ export {
   writePlayerProfile,
 } from "./playerProfile";
 export { getCodenamesEntryUrl } from "./codenamesUrl";
+export { getImposterEntryUrl } from "./imposterUrl";

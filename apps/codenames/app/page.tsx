@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { setLastLobbyEncoded } from "@/lib/boardStorage";
 import {
@@ -18,6 +18,7 @@ import {
   writeWordPackSelection,
 } from "@/lib/wordPackPrefs";
 import { readPlayerProfile } from "@minigames/shared";
+import { LobbyActionsMenu } from "./LobbyActionsMenu";
 
 function lobbyParamToDisplaySeed(raw: string): string {
   try {
@@ -27,19 +28,13 @@ function lobbyParamToDisplaySeed(raw: string): string {
   }
 }
 
-function readInitialSeed(): string {
-  if (typeof window === "undefined") return "";
-  const q = new URLSearchParams(window.location.search).get("lobby");
-  if (!q) return "";
-  return lobbyParamToDisplaySeed(q);
-}
-
 export default function Home() {
-  const [seed, setSeed] = useState(readInitialSeed);
+  const [seed, setSeed] = useState("");
   const [hubDisplayName, setHubDisplayName] = useState("");
   const [enabledPacks, setEnabledPacks] = useState<string[]>(() =>
     resolveEnabledPackIds(null, null),
   );
+  const rulesDialogRef = useRef<HTMLDialogElement>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -116,7 +111,13 @@ export default function Home() {
   };
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center px-3 py-6 sm:px-4 sm:py-12">
+    <div className="relative flex flex-1 flex-col items-center justify-center px-3 py-6 sm:px-4 sm:py-12">
+      <div className="absolute right-3 top-4 sm:right-4 sm:top-6">
+        <LobbyActionsMenu
+          onRules={() => rulesDialogRef.current?.showModal()}
+          onReturnToHub={() => window.location.assign("/")}
+        />
+      </div>
       <main className="w-full max-w-md space-y-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm sm:p-6 md:max-w-2xl md:p-8">
         <div className="text-center">
           <h1 className="text-xl font-semibold tracking-tight text-[var(--foreground)] sm:text-2xl">
@@ -226,6 +227,35 @@ export default function Home() {
           </div>
         </div>
       </main>
+      <dialog ref={rulesDialogRef} className="rules-dialog">
+        <h2 className="mb-3 text-lg font-semibold text-[var(--foreground)]">
+          Quick rules
+        </h2>
+        <div className="space-y-3 text-sm leading-relaxed text-[var(--muted)]">
+          <p>
+            Each turn the spymaster gives their field team a clue as{" "}
+            <strong className="text-[var(--foreground)]">one word</strong> and a{" "}
+            <strong className="text-[var(--foreground)]">number</strong>, for example{" "}
+            <span className="font-mono text-[var(--foreground)]">cold 2</span>.
+          </p>
+          <p>
+            The field team must guess{" "}
+            <strong className="text-[var(--foreground)]">at least once</strong>, and
+            may guess up to{" "}
+            <strong className="text-[var(--foreground)]">the number plus one</strong>{" "}
+            time in that turn (the extra guess can help catch up on words missed
+            in earlier rounds).
+          </p>
+        </div>
+        <form method="dialog" className="mt-5 flex justify-end">
+          <button
+            type="submit"
+            className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-foreground)]"
+          >
+            Close
+          </button>
+        </form>
+      </dialog>
     </div>
   );
 }

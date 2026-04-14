@@ -23,14 +23,29 @@ Stack: **Next.js 16**, **React 19**, **TypeScript**, **Tailwind CSS 4**.
 
 ## Getting Started
 
-Install dependencies and run the dev server:
+From the monorepo root, install dependencies and start both apps:
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Enter a lobby code, choose **Host** or a spymaster role, then open the same lobby on other devices as needed.
+This app runs on port `3001` locally. For seamless Hub -> Codenames navigation at `http://localhost:3000/codenames`, set:
+
+```bash
+# apps/codenames/.env.local
+NEXT_PUBLIC_BASE_PATH=/codenames
+```
+
+You can also run only Codenames:
+
+```bash
+npm run dev:codenames
+```
+
+Then open either:
+- Hub flow: [http://localhost:3000](http://localhost:3000) and join a lobby
+- Direct Codenames dev server: [http://localhost:3001/codenames](http://localhost:3001/codenames)
 
 ```bash
 npm run build   # production build

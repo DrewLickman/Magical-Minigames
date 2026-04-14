@@ -6,7 +6,12 @@
     "packages/*"
   ],
   "scripts": {
+    "dev": "concurrently -n hub,codenames,imposter -c auto \"npm run dev:hub\" \"npm run dev:codenames\" \"npm run dev:imposter\"",
     "dev:hub": "npm run dev --workspace=hub",
-    "dev:codenames": "npm run dev --workspace=codenames"
+    "dev:codenames": "npm run dev --workspace=codenames",
+    "dev:imposter": "npm run dev --workspace=imposter"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }

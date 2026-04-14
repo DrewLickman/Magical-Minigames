@@ -6,25 +6,29 @@ From the monorepo root:
 
 ```bash
 npm install
+npm run dev
 ```
 
-Terminal A — hub (port 3000):
+This starts both apps in parallel:
 
 ```bash
-npm run dev --workspace=hub
+npm run dev:hub       # Hub on port 3000
+npm run dev:codenames # Codenames on port 3001
 ```
 
-Terminal B — Codenames (port 3001):
+Configure local envs for seamless same-origin navigation (`/codenames` via hub):
 
 ```bash
-npm run dev --workspace=codenames
+# apps/hub/.env.local
+NEXT_PUBLIC_CODENAMES_URL=
 ```
-
-Create `apps/hub/.env.local`:
 
 ```bash
-NEXT_PUBLIC_CODENAMES_URL=http://localhost:3001
+# apps/codenames/.env.local
+NEXT_PUBLIC_BASE_PATH=/codenames
 ```
+
+Then open [http://localhost:3000](http://localhost:3000). Joining Codenames routes to `http://localhost:3000/codenames?...` while the hub dev proxy forwards requests to Codenames on port `3001`.
 
 Leave `NEXT_PUBLIC_CODENAMES_URL` unset in production on the hub when using path-based routing to Codenames on the same domain (see below).
 
