@@ -37,6 +37,34 @@ const child = spawn(
 );
 
 child.on("exit", (code) => {
+  const workspaceBuildDir = "apps/hub/.next";
+  const rootBuildDir = ".next";
+
+  // #region agent log
+  postLog({
+    sessionId: "6b0f53",
+    runId,
+    hypothesisId: "H6",
+    location: "scripts/vercel-build.mjs:45",
+    message: "Build output directories before copy",
+    data: {
+      code,
+      workspaceBuildDirExists: fs.existsSync(workspaceBuildDir),
+      rootBuildDirExists: fs.existsSync(rootBuildDir),
+      workspaceRoutesManifestExists: fs.existsSync(
+        `${workspaceBuildDir}/routes-manifest.json`
+      ),
+      rootRoutesManifestExists: fs.existsSync(`${rootBuildDir}/routes-manifest.json`),
+    },
+    timestamp: Date.now(),
+  });
+  // #endregion
+
+  if ((code ?? 1) === 0 && fs.existsSync(workspaceBuildDir)) {
+    if (fs.existsSync(rootBuildDir)) fs.rmSync(rootBuildDir, { recursive: true, force: true });
+    fs.cpSync(workspaceBuildDir, rootBuildDir, { recursive: true });
+  }
+
   // #region agent log
   postLog({
     sessionId: "6b0f53",
@@ -44,7 +72,12 @@ child.on("exit", (code) => {
     hypothesisId: "H5",
     location: "scripts/vercel-build.mjs:41",
     message: "Hub workspace build exited",
-    data: { code },
+    data: {
+      code,
+      rootRoutesManifestExistsAfterCopy: fs.existsSync(
+        `${rootBuildDir}/routes-manifest.json`
+      ),
+    },
     timestamp: Date.now(),
   }).finally(() => process.exit(code ?? 1));
   // #endregion
