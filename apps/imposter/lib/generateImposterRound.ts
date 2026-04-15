@@ -1,4 +1,4 @@
-import { IMPOSTER_WORD_POOL } from "./imposterWordPool";
+import { IMPOSTER_CATEGORIES, type ImposterCategory } from "./imposterCategories";
 import { mulberry32, stringToSeed } from "./seededRandom";
 
 export type ImposterRoundParams = {
@@ -9,7 +9,8 @@ export type ImposterRoundParams = {
 };
 
 export type ImposterRoundView = {
-  confirmationWord: string;
+  /** Shared theme name; everyone sees the same label. */
+  categoryLabel: string;
   secretWord: string;
 };
 
@@ -22,17 +23,30 @@ function shuffleInPlace<T>(items: T[], rand: () => number) {
   }
 }
 
-function pickDistinctWords(
-  pool: readonly string[],
-  count: number,
+function pickCategory(rand: () => number): ImposterCategory {
+  const categories = [...IMPOSTER_CATEGORIES];
+  shuffleInPlace(categories, rand);
+  return categories[0]!;
+}
+
+/**
+ * Pick two different secret words from the same category (crew vs imposters).
+ */
+function pickCrewAndImposterSecrets(
+  category: ImposterCategory,
   rand: () => number,
-): string[] {
-  if (pool.length < count) {
-    throw new Error(`Word pool too small: need ${count}, have ${pool.length}`);
+): { innocentSecret: string; imposterSecret: string } {
+  if (category.words.length < 2) {
+    throw new Error(
+      `Category "${category.id}" needs at least two words for crew vs imposter.`,
+    );
   }
-  const copy = [...pool];
-  shuffleInPlace(copy, rand);
-  return copy.slice(0, count);
+  const words = [...category.words];
+  shuffleInPlace(words, rand);
+  return {
+    innocentSecret: words[0]!,
+    imposterSecret: words[1]!,
+  };
 }
 
 function pickImposterSeats(
@@ -52,9 +66,9 @@ export function generateImposterRound(
   const roundKey = `${lobbySeed}|p=${players}|i=${imposters}`;
   const rand = mulberry32(stringToSeed(roundKey));
 
-  const [confirmationWord, innocentSecret, imposterSecret] = pickDistinctWords(
-    IMPOSTER_WORD_POOL,
-    3,
+  const category = pickCategory(rand);
+  const { innocentSecret, imposterSecret } = pickCrewAndImposterSecrets(
+    category,
     rand,
   );
 
@@ -65,7 +79,7 @@ export function generateImposterRound(
     : innocentSecret;
 
   return {
-    confirmationWord,
+    categoryLabel: category.label,
     secretWord,
   };
 }

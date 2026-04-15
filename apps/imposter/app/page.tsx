@@ -76,8 +76,8 @@ export default function Home() {
         <div className="text-center">
           <h1 className="text-2xl font-semibold tracking-tight">Imposter</h1>
           <p className="mt-2 text-sm text-[var(--muted)]">
-            Enter the lobby code and your seat. Each device shows the same
-            confirmation word and a secret word that differs for imposters.
+            Enter the lobby code and your seat. Everyone sees the same category;
+            crew and imposters get different secret words from that category.
           </p>
           {hubDisplayName ? (
             <p className="mt-1 text-sm text-[var(--muted)]">

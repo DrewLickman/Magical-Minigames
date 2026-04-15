@@ -126,14 +126,14 @@ export function GameClient({
 
       <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
         <h2 className="text-sm font-medium text-[var(--muted)]">
-          Confirmation word / Secret word
+          Category / Secret word
         </h2>
-        <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1 font-mono text-xl font-semibold capitalize text-[var(--foreground)] sm:text-2xl">
-          <span>{roundView.confirmationWord}</span>
+        <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-xl font-semibold text-[var(--foreground)] sm:text-2xl">
+          <span className="font-sans">{roundView.categoryLabel}</span>
           <span className="text-[var(--muted)]" aria-hidden>
             /
           </span>
-          <span>{roundView.secretWord}</span>
+          <span className="font-mono">{roundView.secretWord}</span>
         </div>
         <p className="mt-3 text-sm font-bold text-[var(--foreground)] underline">
           Imposters see a different secret word than the crew.
