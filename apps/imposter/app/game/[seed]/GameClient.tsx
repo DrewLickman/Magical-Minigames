@@ -1,20 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { readPlayerProfile } from "@minigames/shared";
 import { generateImposterRound } from "@/lib/generateImposterRound";
 import { parseRoundSettingsFromSearchParams } from "@/lib/imposterGameParams";
+import { nextLobbySeed } from "@/lib/nextLobbySeed";
 import {
   readImposterState,
   writeImposterState,
 } from "@/lib/imposterStorage";
 import {
+  buildGamePath,
   buildHomePathWithLobby,
   normalizeLobbySeed,
   safeDecodeParam,
 } from "@/lib/imposterUrlState";
+import { GameActionsMenu } from "./GameActionsMenu";
 
 function imposterCountLine(count: number): string {
   if (count === 1) return "There is 1 imposter!";
@@ -26,6 +29,7 @@ export function GameClient({
 }: {
   encodedSeed: string;
 }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const lobbySeed = useMemo(
     () => normalizeLobbySeed(safeDecodeParam(encodedSeed)),
@@ -100,13 +104,44 @@ export function GameClient({
     imposters: roundSettings.imposters,
     playerSeat: roundSettings.playerSeat,
   });
+  const goToNextGame = useCallback(() => {
+    const nextLobby = nextLobbySeed(lobbySeed);
+    const destination = buildGamePath(nextLobby, {
+      player: roundSettings.playerSeat,
+      players: roundSettings.players,
+      imposters: roundSettings.imposters,
+    });
+    router.push(destination);
+  }, [
+    lobbySeed,
+    roundSettings.imposters,
+    roundSettings.playerSeat,
+    roundSettings.players,
+    router,
+  ]);
+  const requestNextGame = useCallback(() => {
+    if (
+      !globalThis.confirm(
+        "Start the next lobby on this device? You will get a new lobby code.",
+      )
+    ) {
+      return;
+    }
+    goToNextGame();
+  }, [goToNextGame]);
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5 px-3 py-6 sm:px-4">
       <header className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
-        <h1 className="text-xl font-semibold text-[var(--foreground)]">
-          Imposter Game
-        </h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="text-xl font-semibold text-[var(--foreground)]">
+            Imposter Game
+          </h1>
+          <GameActionsMenu
+            onNextGame={requestNextGame}
+            returnToLobbyHref={homeWithLobby}
+          />
+        </div>
         <p className="mt-3 text-sm text-[var(--foreground)]">
           Lobby code:{" "}
           <span className="font-mono">{lobbySeed}</span>
@@ -160,14 +195,6 @@ export function GameClient({
         />
       </section>
 
-      <div>
-        <Link
-          href={homeWithLobby}
-          className="inline-block rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--foreground)]"
-        >
-          Leave lobby
-        </Link>
-      </div>
     </div>
   );
 }
