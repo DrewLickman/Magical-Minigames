@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 
-export function ImposterLobbyMenu() {
+export function SpyfallLobbyMenu() {
   const detailsRef = useRef<HTMLDetailsElement>(null);
 
   const closeMenu = useCallback(() => {

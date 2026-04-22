@@ -5,7 +5,7 @@ import type { NextConfig } from "next";
 const appDir = path.dirname(fileURLToPath(import.meta.url));
 const monorepoRoot = path.resolve(appDir, "../..");
 
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH?.trim() || "/imposter";
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH?.trim() || "/spyfall";
 
 const nextConfig: NextConfig = {
   basePath: basePath || undefined,

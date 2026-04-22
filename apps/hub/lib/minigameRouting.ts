@@ -1,6 +1,6 @@
 type MinigameOriginEnv = {
   codenamesOrigin: string;
-  imposterOrigin: string;
+  spyfallOrigin: string;
 };
 
 const PLACEHOLDER_MARKERS = ["YOUR_", "example.com", "changeme"];
@@ -18,14 +18,14 @@ function looksLikePlaceholder(value: string): boolean {
 export function getDevOrigins(): MinigameOriginEnv {
   return {
     codenamesOrigin: normalizeOrigin(process.env.CODENAMES_DEV_ORIGIN) || "http://localhost:3001",
-    imposterOrigin: normalizeOrigin(process.env.IMPOSTER_DEV_ORIGIN) || "http://localhost:3002",
+    spyfallOrigin: normalizeOrigin(process.env.SPYFALL_DEV_ORIGIN) || "http://localhost:3002",
   };
 }
 
 export function getProdOrigins(): MinigameOriginEnv {
   return {
     codenamesOrigin: normalizeOrigin(process.env.CODENAMES_PROD_ORIGIN),
-    imposterOrigin: normalizeOrigin(process.env.IMPOSTER_PROD_ORIGIN),
+    spyfallOrigin: normalizeOrigin(process.env.SPYFALL_PROD_ORIGIN),
   };
 }
 
@@ -38,10 +38,10 @@ export function assertValidProdOrigins(origins: MinigameOriginEnv): void {
     problems.push("CODENAMES_PROD_ORIGIN still looks like a placeholder value.");
   }
 
-  if (!origins.imposterOrigin) {
-    problems.push("Missing IMPOSTER_PROD_ORIGIN.");
-  } else if (looksLikePlaceholder(origins.imposterOrigin)) {
-    problems.push("IMPOSTER_PROD_ORIGIN still looks like a placeholder value.");
+  if (!origins.spyfallOrigin) {
+    problems.push("Missing SPYFALL_PROD_ORIGIN.");
+  } else if (looksLikePlaceholder(origins.spyfallOrigin)) {
+    problems.push("SPYFALL_PROD_ORIGIN still looks like a placeholder value.");
   }
 
   if (problems.length > 0) {
@@ -62,12 +62,12 @@ export function buildMinigameRewrites(origins: MinigameOriginEnv) {
       destination: `${origins.codenamesOrigin}/codenames/:path*`,
     },
     {
-      source: "/imposter",
-      destination: `${origins.imposterOrigin}/imposter`,
+      source: "/spyfall",
+      destination: `${origins.spyfallOrigin}/spyfall`,
     },
     {
-      source: "/imposter/:path*",
-      destination: `${origins.imposterOrigin}/imposter/:path*`,
+      source: "/spyfall/:path*",
+      destination: `${origins.spyfallOrigin}/spyfall/:path*`,
     },
   ];
 }

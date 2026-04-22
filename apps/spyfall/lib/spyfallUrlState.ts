@@ -30,7 +30,7 @@ export function readEntryQuery(search: string): {
 export type BuildGamePathOptions = {
   player: number;
   players: number;
-  imposters: number;
+  spies: number;
 };
 
 /** Lobby entry path with pre-filled code (used when leaving the game). */
@@ -49,7 +49,7 @@ export function buildGamePath(
   const query = new URLSearchParams({
     player: String(options.player),
     players: String(options.players),
-    imposters: String(options.imposters),
+    spies: String(options.spies),
   });
   return `${path}?${query.toString()}`;
 }

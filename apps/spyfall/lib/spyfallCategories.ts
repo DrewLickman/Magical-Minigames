@@ -1,4 +1,4 @@
-export type ImposterCategory = {
+export type SpyfallCategory = {
   id: string;
   /** Shown to every player so they know the shared theme. */
   label: string;
@@ -6,7 +6,7 @@ export type ImposterCategory = {
   words: readonly string[];
 };
 
-export const IMPOSTER_CATEGORIES: readonly ImposterCategory[] = [
+export const SPYFALL_CATEGORIES: readonly SpyfallCategory[] = [
   {
     id: "date_spots",
     label: "Nights out & date spots",
@@ -215,8 +215,8 @@ export const IMPOSTER_CATEGORIES: readonly ImposterCategory[] = [
       "savanna",
       "beach",
       "jungle",
-      "cave"
-      "river"
+      "cave",
+      "river",
       "forest",
       "birch forest",
       "mooshroom island",

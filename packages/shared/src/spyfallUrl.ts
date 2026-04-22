@@ -1,7 +1,7 @@
 /**
- * Build the Imposter app entry URL with a pre-filled lobby query.
+ * Build the Spyfall app entry URL with a pre-filled lobby query.
  */
-export function getImposterEntryUrl(options: {
+export function getSpyfallEntryUrl(options: {
   lobbyCode: string;
   displayName?: string;
 }): string {
@@ -9,5 +9,5 @@ export function getImposterEntryUrl(options: {
   const namePart = options.displayName?.trim()
     ? `&name=${encodeURIComponent(options.displayName.trim())}`
     : "";
-  return `/imposter?lobby=${lobby}${namePart}`;
+  return `/spyfall?lobby=${lobby}${namePart}`;
 }

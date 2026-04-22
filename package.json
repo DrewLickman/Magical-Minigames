@@ -6,10 +6,10 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "concurrently -n hub,codenames,imposter -c auto \"npm run dev:hub\" \"npm run dev:codenames\" \"npm run dev:imposter\"",
+    "dev": "concurrently -n hub,codenames,spyfall -c auto \"npm run dev:hub\" \"npm run dev:codenames\" \"npm run dev:spyfall\"",
     "dev:hub": "npm run dev --workspace=hub",
     "dev:codenames": "npm run dev --workspace=codenames",
-    "dev:imposter": "npm run dev --workspace=imposter",
+    "dev:spyfall": "npm run dev --workspace=spyfall",
     "smoke:routes": "node ./scripts/smoke-routes.mjs"
   },
   "devDependencies": {

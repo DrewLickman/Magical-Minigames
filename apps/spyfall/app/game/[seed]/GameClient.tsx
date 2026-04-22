@@ -4,24 +4,24 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { readPlayerProfile } from "@minigames/shared";
-import { generateImposterRound } from "@/lib/generateImposterRound";
-import { parseRoundSettingsFromSearchParams } from "@/lib/imposterGameParams";
+import { generateSpyfallRound } from "@/lib/generateSpyfallRound";
+import { parseRoundSettingsFromSearchParams } from "@/lib/spyfallGameParams";
 import { nextLobbySeed } from "@/lib/nextLobbySeed";
 import {
-  readImposterState,
-  writeImposterState,
-} from "@/lib/imposterStorage";
+  readSpyfallState,
+  writeSpyfallState,
+} from "@/lib/spyfallStorage";
 import {
   buildGamePath,
   buildHomePathWithLobby,
   normalizeLobbySeed,
   safeDecodeParam,
-} from "@/lib/imposterUrlState";
+} from "@/lib/spyfallUrlState";
 import { GameActionsMenu } from "./GameActionsMenu";
 
-function imposterCountLine(count: number): string {
-  if (count === 1) return "There is 1 imposter!";
-  return `There are ${count} imposters!`;
+function spyCountLine(count: number): string {
+  if (count === 1) return "There is 1 spy!";
+  return `There are ${count} spies!`;
 }
 
 export function GameClient({
@@ -51,14 +51,14 @@ export function GameClient({
     queueMicrotask(() => {
       setPlayerName(readPlayerProfile()?.displayName?.trim() ?? "");
       if (!lobbySeed) return;
-      const stored = readImposterState(lobbySeed);
+      const stored = readSpyfallState(lobbySeed);
       if (stored) setNotes(stored.notes);
     });
   }, [lobbySeed]);
 
   useEffect(() => {
     if (!lobbySeed) return;
-    writeImposterState(lobbySeed, notes);
+    writeSpyfallState(lobbySeed, notes);
   }, [lobbySeed, notes]);
 
   if (!lobbySeed) {
@@ -82,7 +82,7 @@ export function GameClient({
       <div className="mx-auto max-w-lg px-4 py-10">
         <p className="text-[var(--foreground)]">
           Missing or invalid game link. Open the lobby from the home screen with
-          seat, player count, and imposter count set.
+          seat, player count, and spy count set.
         </p>
         <p className="mt-2 text-sm text-[var(--muted)]">
           Lobby code:{" "}
@@ -98,10 +98,10 @@ export function GameClient({
     );
   }
 
-  const roundView = generateImposterRound({
+  const roundView = generateSpyfallRound({
     lobbySeed,
     players: roundSettings.players,
-    imposters: roundSettings.imposters,
+    spies: roundSettings.spies,
     playerSeat: roundSettings.playerSeat,
   });
   const goToNextGame = useCallback(() => {
@@ -109,12 +109,12 @@ export function GameClient({
     const destination = buildGamePath(nextLobby, {
       player: roundSettings.playerSeat,
       players: roundSettings.players,
-      imposters: roundSettings.imposters,
+      spies: roundSettings.spies,
     });
     router.push(destination);
   }, [
     lobbySeed,
-    roundSettings.imposters,
+    roundSettings.spies,
     roundSettings.playerSeat,
     roundSettings.players,
     router,
@@ -135,7 +135,7 @@ export function GameClient({
       <header className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
         <div className="flex items-start justify-between gap-3">
           <h1 className="text-xl font-semibold text-[var(--foreground)]">
-            Imposter Game
+            Spyfall
           </h1>
           <GameActionsMenu
             onNextGame={requestNextGame}
@@ -150,7 +150,7 @@ export function GameClient({
           Seat: {roundSettings.playerSeat}
         </p>
         <p className="mt-1 text-sm text-[var(--foreground)]">
-          {imposterCountLine(roundSettings.imposters)}
+          {spyCountLine(roundSettings.spies)}
         </p>
         {playerName ? (
           <p className="mt-2 text-sm text-[var(--muted)]">
@@ -171,7 +171,7 @@ export function GameClient({
           <span className="font-mono">{roundView.secretWord}</span>
         </div>
         <p className="mt-3 text-sm font-bold text-[var(--foreground)] underline">
-          Imposters see a different secret word than the crew.
+          Spies see a different secret word than the crew.
         </p>
       </section>
 
@@ -182,11 +182,11 @@ export function GameClient({
         <p className="mt-2 text-sm text-[var(--muted)]">
           Private notes for this lobby on this device (not shared).
         </p>
-        <label htmlFor="imposter-notes" className="sr-only">
+        <label htmlFor="spyfall-notes" className="sr-only">
           Round notes
         </label>
         <textarea
-          id="imposter-notes"
+          id="spyfall-notes"
           value={notes}
           onChange={(event) => setNotes(event.target.value)}
           rows={6}

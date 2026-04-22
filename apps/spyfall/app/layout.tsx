@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Imposter",
-  description: "Lobby-seeded Imposter skeleton for local play.",
+  title: "Spyfall",
+  description: "Lobby-seeded Spyfall-style word game for local play.",
 };
 
 export const viewport: Viewport = {

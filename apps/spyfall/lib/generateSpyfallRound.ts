@@ -1,14 +1,14 @@
-import { IMPOSTER_CATEGORIES, type ImposterCategory } from "./imposterCategories";
+import { SPYFALL_CATEGORIES, type SpyfallCategory } from "./spyfallCategories";
 import { mulberry32, stringToSeed } from "./seededRandom";
 
-export type ImposterRoundParams = {
+export type SpyfallRoundParams = {
   lobbySeed: string;
   players: number;
-  imposters: number;
+  spies: number;
   playerSeat: number;
 };
 
-export type ImposterRoundView = {
+export type SpyfallRoundView = {
   /** Shared theme name; everyone sees the same label. */
   categoryLabel: string;
   secretWord: string;
@@ -23,60 +23,55 @@ function shuffleInPlace<T>(items: T[], rand: () => number) {
   }
 }
 
-function pickCategory(rand: () => number): ImposterCategory {
-  const categories = [...IMPOSTER_CATEGORIES];
+function pickCategory(rand: () => number): SpyfallCategory {
+  const categories = [...SPYFALL_CATEGORIES];
   shuffleInPlace(categories, rand);
   return categories[0]!;
 }
 
 /**
- * Pick two different secret words from the same category (crew vs imposters).
+ * Pick two different secret words from the same category (crew vs spies).
  */
-function pickCrewAndImposterSecrets(
-  category: ImposterCategory,
+function pickCrewAndSpySecrets(
+  category: SpyfallCategory,
   rand: () => number,
-): { innocentSecret: string; imposterSecret: string } {
+): { crewSecret: string; spySecret: string } {
   if (category.words.length < 2) {
     throw new Error(
-      `Category "${category.id}" needs at least two words for crew vs imposter.`,
+      `Category "${category.id}" needs at least two words for crew vs spy.`,
     );
   }
   const words = [...category.words];
   shuffleInPlace(words, rand);
   return {
-    innocentSecret: words[0]!,
-    imposterSecret: words[1]!,
+    crewSecret: words[0]!,
+    spySecret: words[1]!,
   };
 }
 
-function pickImposterSeats(
+function pickSpySeats(
   players: number,
-  imposters: number,
+  spies: number,
   rand: () => number,
 ): Set<number> {
   const seats = Array.from({ length: players }, (_, i) => i + 1);
   shuffleInPlace(seats, rand);
-  return new Set(seats.slice(0, imposters));
+  return new Set(seats.slice(0, spies));
 }
 
-export function generateImposterRound(
-  params: ImposterRoundParams,
-): ImposterRoundView {
-  const { lobbySeed, players, imposters, playerSeat } = params;
-  const roundKey = `${lobbySeed}|p=${players}|i=${imposters}`;
+export function generateSpyfallRound(
+  params: SpyfallRoundParams,
+): SpyfallRoundView {
+  const { lobbySeed, players, spies, playerSeat } = params;
+  const roundKey = `${lobbySeed}|p=${players}|s=${spies}`;
   const rand = mulberry32(stringToSeed(roundKey));
 
   const category = pickCategory(rand);
-  const { innocentSecret, imposterSecret } = pickCrewAndImposterSecrets(
-    category,
-    rand,
-  );
+  const { crewSecret, spySecret } = pickCrewAndSpySecrets(category, rand);
 
-  const imposterSeats = pickImposterSeats(players, imposters, rand);
-  // All imposter seats share the same fake word (not one draw per imposter).
-  const secretWord = imposterSeats.has(playerSeat)
-    ? imposterSecret
-    : innocentSecret;
+  const spySeats = pickSpySeats(players, spies, rand);
+  // All spy seats share the same decoy word (not one draw per spy).
+  const secretWord = spySeats.has(playerSeat) ? spySecret : crewSecret;
 
   return {
     categoryLabel: category.label,

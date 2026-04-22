@@ -4,13 +4,13 @@ import { useEffect, useState } from "react";
 import {
   defaultPlayerProfile,
   getCodenamesEntryUrl,
-  getImposterEntryUrl,
+  getSpyfallEntryUrl,
   readPlayerProfile,
   writePlayerProfile,
   type PlayerProfile,
 } from "@minigames/shared";
 
-type GameId = "codenames" | "imposter";
+type GameId = "codenames" | "spyfall";
 
 export default function Home() {
   const [profile, setProfile] = useState<PlayerProfile>(defaultPlayerProfile);
@@ -40,7 +40,7 @@ export default function Home() {
             lobbyCode: trimmedLobby,
             displayName,
           })
-        : getImposterEntryUrl({
+        : getSpyfallEntryUrl({
             lobbyCode: trimmedLobby,
             displayName,
           });
@@ -113,7 +113,7 @@ export default function Home() {
               className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-[var(--foreground)] outline-none ring-[var(--accent)] focus:ring-2"
             >
               <option value="codenames">Codenames</option>
-              <option value="imposter">Imposter</option>
+              <option value="spyfall">Spyfall</option>
             </select>
           </div>
 

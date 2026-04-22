@@ -12,7 +12,7 @@ jobs:
     env:
       HUB_URL: ${{ secrets.HUB_URL }}
       CODENAMES_URL: ${{ secrets.CODENAMES_URL }}
-      IMPOSTER_URL: ${{ secrets.IMPOSTER_URL }}
+      SPYFALL_URL: ${{ secrets.SPYFALL_URL }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,7 +29,7 @@ jobs:
         run: |
           test -n "$HUB_URL"
           test -n "$CODENAMES_URL"
-          test -n "$IMPOSTER_URL"
+          test -n "$SPYFALL_URL"
 
       - name: Run routing smoke checks
         run: npm run smoke:routes

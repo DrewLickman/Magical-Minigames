@@ -3,12 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { readPlayerProfile } from "@minigames/shared";
-import { isValidRoundSettings, type RoundSettings } from "@/lib/imposterGameParams";
-import { buildGamePath, readEntryQuery } from "@/lib/imposterUrlState";
-import { ImposterLobbyMenu } from "./ImposterLobbyMenu";
+import { isValidRoundSettings, type RoundSettings } from "@/lib/spyfallGameParams";
+import { buildGamePath, readEntryQuery } from "@/lib/spyfallUrlState";
+import { SpyfallLobbyMenu } from "./SpyfallLobbyMenu";
 
 const PLAYER_COUNTS = [3, 4, 5, 6] as const;
-const IMPOSTER_COUNTS = [1, 2] as const;
+const SPY_COUNTS = [1, 2] as const;
 
 function countButtonClass(selected: boolean): string {
   const base =
@@ -25,7 +25,7 @@ export default function Home() {
   const [hubDisplayName, setHubDisplayName] = useState("");
   const [playerSeat, setPlayerSeat] = useState(1);
   const [players, setPlayers] = useState(6);
-  const [imposters, setImposters] = useState(1);
+  const [spies, setSpies] = useState(1);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -49,8 +49,8 @@ export default function Home() {
   }, []);
 
   const settings: RoundSettings = useMemo(
-    () => ({ playerSeat, players, imposters }),
-    [playerSeat, players, imposters],
+    () => ({ playerSeat, players, spies }),
+    [playerSeat, players, spies],
   );
 
   const trimmedLobby = lobbySeed.trim();
@@ -62,7 +62,7 @@ export default function Home() {
     const destination = buildGamePath(trimmedLobby, {
       player: playerSeat,
       players,
-      imposters,
+      spies,
     });
     router.push(destination);
   };
@@ -70,14 +70,14 @@ export default function Home() {
   return (
     <div className="relative flex flex-1 flex-col items-center justify-center px-3 py-6 sm:px-4 sm:py-10">
       <div className="absolute right-3 top-4 z-30 sm:right-4 sm:top-6">
-        <ImposterLobbyMenu />
+        <SpyfallLobbyMenu />
       </div>
       <main className="w-full max-w-xl space-y-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm sm:p-6">
         <div className="text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">Imposter</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Spyfall</h1>
           <p className="mt-2 text-sm text-[var(--muted)]">
             Enter the lobby code and your seat. Everyone sees the same category;
-            crew and imposters get different secret words from that category.
+            crew and spies get different secret words from that category.
           </p>
           {hubDisplayName ? (
             <p className="mt-1 text-sm text-[var(--muted)]">
@@ -138,14 +138,14 @@ export default function Home() {
           </div>
 
           <div className="space-y-2">
-            <span className="block text-sm font-medium">Imposter Count</span>
+            <span className="block text-sm font-medium">Spy Count</span>
             <div className="flex flex-wrap gap-2">
-              {IMPOSTER_COUNTS.map((n) => (
+              {SPY_COUNTS.map((n) => (
                 <button
                   key={n}
                   type="button"
-                  className={countButtonClass(imposters === n)}
-                  onClick={() => setImposters(n)}
+                  className={countButtonClass(spies === n)}
+                  onClick={() => setSpies(n)}
                 >
                   {n}
                 </button>
@@ -172,7 +172,7 @@ export default function Home() {
           {!isValidRoundSettings(settings) && trimmedLobby.length > 0 ? (
             <p className="text-sm text-[var(--muted)]">
               Seat must be between 1 and the number of players, and there must
-              be at least one non-imposter (players greater than imposters).
+              be at least one crew member (players greater than spies).
             </p>
           ) : null}
 
