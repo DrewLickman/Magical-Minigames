@@ -56,10 +56,10 @@ Then open [http://localhost:3000](http://localhost:3000). Joining routes to same
 5. On the **Hub** project, set:
    - `CODENAMES_PROD_ORIGIN=https://<codenames-production-domain>`
    - `SPYFALL_PROD_ORIGIN=https://<spyfall-production-domain>`
-   - `JEOPARDY_PROD_ORIGIN=https://<jeopardy-production-domain>`
+   - `JEOPARDY_PROD_ORIGIN=https://<jeopardy-production-domain>` (optional until the Jeopardy project is live; if omitted, the hub build still succeeds and `/jeopardy` is not rewritten until you add it)
 
 Routing mode is now always same-origin from Hub:
-- Join links are generated as `/codenames?...` or `/spyfall?...`; Jeopardy opens at `/jeopardy/host`.
+- Join links are generated as `/codenames?...` or `/spyfall?...`; Jeopardy opens at `/jeopardy/host` when `JEOPARDY_PROD_ORIGIN` is set.
 - Hub rewrites those routes to the configured production origins.
 
 See [`docs/vercel-deployments.md`](../../docs/vercel-deployments.md) for the runbook and smoke-test checklist.

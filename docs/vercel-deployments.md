@@ -13,7 +13,7 @@ This repository uses four Vercel projects:
 
 - `CODENAMES_PROD_ORIGIN=https://<codenames-prod-domain>`
 - `SPYFALL_PROD_ORIGIN=https://<spyfall-prod-domain>`
-- `JEOPARDY_PROD_ORIGIN=https://<jeopardy-prod-domain>`
+- `JEOPARDY_PROD_ORIGIN=https://<jeopardy-prod-domain>` (optional: omit until the Jeopardy project is deployed; hub builds without `/jeopardy` rewrites until this is set)
 - Optional (local only):
   - `CODENAMES_DEV_ORIGIN=http://localhost:3001`
   - `SPYFALL_DEV_ORIGIN=http://localhost:3002`

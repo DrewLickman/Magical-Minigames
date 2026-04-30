@@ -1,6 +1,7 @@
 type MinigameOriginEnv = {
   codenamesOrigin: string;
   spyfallOrigin: string;
+  /** Empty when `JEOPARDY_PROD_ORIGIN` is unset — hub builds without `/jeopardy` rewrites until Jeopardy is deployed. */
   jeopardyOrigin: string;
 };
 
@@ -47,9 +48,7 @@ export function assertValidProdOrigins(origins: MinigameOriginEnv): void {
     problems.push("SPYFALL_PROD_ORIGIN still looks like a placeholder value.");
   }
 
-  if (!origins.jeopardyOrigin) {
-    problems.push("Missing JEOPARDY_PROD_ORIGIN.");
-  } else if (looksLikePlaceholder(origins.jeopardyOrigin)) {
+  if (origins.jeopardyOrigin && looksLikePlaceholder(origins.jeopardyOrigin)) {
     problems.push("JEOPARDY_PROD_ORIGIN still looks like a placeholder value.");
   }
 
@@ -61,7 +60,7 @@ export function assertValidProdOrigins(origins: MinigameOriginEnv): void {
 }
 
 export function buildMinigameRewrites(origins: MinigameOriginEnv) {
-  return [
+  const base: { source: string; destination: string }[] = [
     {
       source: "/codenames",
       destination: `${origins.codenamesOrigin}/codenames`,
@@ -78,13 +77,20 @@ export function buildMinigameRewrites(origins: MinigameOriginEnv) {
       source: "/spyfall/:path*",
       destination: `${origins.spyfallOrigin}/spyfall/:path*`,
     },
-    {
-      source: "/jeopardy",
-      destination: `${origins.jeopardyOrigin}/jeopardy`,
-    },
-    {
-      source: "/jeopardy/:path*",
-      destination: `${origins.jeopardyOrigin}/jeopardy/:path*`,
-    },
   ];
+
+  if (origins.jeopardyOrigin) {
+    base.push(
+      {
+        source: "/jeopardy",
+        destination: `${origins.jeopardyOrigin}/jeopardy`,
+      },
+      {
+        source: "/jeopardy/:path*",
+        destination: `${origins.jeopardyOrigin}/jeopardy/:path*`,
+      },
+    );
+  }
+
+  return base;
 }
