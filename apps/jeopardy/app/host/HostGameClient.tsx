@@ -21,6 +21,16 @@ function emptyPlayed(): boolean[][] {
   return Array.from({ length: 5 }, () => Array.from({ length: 5 }, () => false));
 }
 
+function isLocalOrLanHost(hostname: string): boolean {
+  if (!hostname) return false;
+  if (hostname === "localhost" || hostname === "127.0.0.1") return true;
+  return (
+    /^10\./.test(hostname) ||
+    /^192\.168\./.test(hostname) ||
+    /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)
+  );
+}
+
 export function HostGameClient({ templateHref }: { templateHref: string }) {
   const [setupPhase, setSetupPhase] = useState(true);
   const [contestants, setContestants] = useState<Contestant[]>([]);
@@ -52,15 +62,25 @@ export function HostGameClient({ templateHref }: { templateHref: string }) {
   const [connectedRoster, setConnectedRoster] = useState<
     Array<{ id: string; name: string }>
   >([]);
+  const [runtimeHostname, setRuntimeHostname] = useState("");
+  const [templateCopied, setTemplateCopied] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    setRuntimeHostname(window.location.hostname);
     // #region agent log
     fetch('http://127.0.0.1:7622/ingest/1302b181-d6d7-4b6e-bbe5-61c8fc200112',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4a45cf'},body:JSON.stringify({sessionId:'4a45cf',runId:'run4',hypothesisId:'H7',location:'HostGameClient.tsx:mount',message:'Host component mounted',data:{href:window.location.href,pathname:window.location.pathname},timestamp:Date.now()})}).catch(()=>{});
     // #endregion
   }, []);
+
+  const showHostedGuidance = useMemo(() => {
+    const host = runtimeHostname.trim().toLowerCase();
+    if (!host) return false;
+    if (host.endsWith(".vercel.app")) return true;
+    return !isLocalOrLanHost(host);
+  }, [runtimeHostname]);
 
   const hostWsConnectUrl = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -164,6 +184,18 @@ export function HostGameClient({ templateHref }: { templateHref: string }) {
       /* ignore clipboard errors */
     }
   }, [roomCode, buzzerLanHost, buzzerPort]);
+
+  const copyLocalHostTemplate = useCallback(async () => {
+    if (typeof window === "undefined") return;
+    const template = "http://<host-lan-ip>:3003/jeopardy/host";
+    try {
+      await navigator.clipboard.writeText(template);
+      setTemplateCopied(true);
+      window.setTimeout(() => setTemplateCopied(false), 1800);
+    } catch {
+      /* ignore clipboard errors */
+    }
+  }, []);
 
   const sendHostWs = useCallback((payload: Record<string, unknown>) => {
     const ws = wsRef.current;
@@ -469,6 +501,38 @@ export function HostGameClient({ templateHref }: { templateHref: string }) {
             game. Project this page once you begin play.
           </p>
         </header>
+
+        {showHostedGuidance ? (
+          <section className="space-y-3 rounded-xl border border-[var(--accent)] bg-[var(--surface)] p-4">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--foreground)]">
+              Run this locally for buzzer mode
+            </h2>
+            <ol className="list-decimal space-y-1 pl-5 text-sm text-[var(--muted)]">
+              <li>
+                Run{" "}
+                <code className="font-mono text-[var(--foreground)]">
+                  npm run dev:jeopardy:party
+                </code>
+              </li>
+              <li>
+                Open{" "}
+                <code className="font-mono text-[var(--foreground)]">
+                  http://&lt;host-lan-ip&gt;:3003/jeopardy/host
+                </code>
+              </li>
+              <li>Share the buzzer link printed in the terminal.</li>
+            </ol>
+            <button
+              type="button"
+              onClick={() => void copyLocalHostTemplate()}
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-2 text-sm font-medium text-[var(--foreground)]"
+            >
+              {templateCopied
+                ? "Local host template copied"
+                : "Copy local host URL template"}
+            </button>
+          </section>
+        ) : null}
 
         <section className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">

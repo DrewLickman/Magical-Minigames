@@ -6,7 +6,8 @@ Host loads a JSON board, runs the clue flow on a projector, and optionally colle
 
 1. From the **monorepo root**: `npm run dev:jeopardy:party` — starts the game UI and the buzzer WebSocket server together.
 2. Open the **host** page (`http://192.168.1.50:3003/jeopardy/host` or via hub), then use **Copy contestant invite (room included)**. This link includes room + host + port so contestants usually do not type a room code.
-3. Optional fallback: use the terminal line `**Share this link with the contestants: ...`** and then provide the room code shown in host lobby.
+3. Optional fallback: use the terminal line **`Share this link with the contestants: ...`** and then provide the room code shown in host lobby.
+4. If you open host on Vercel/prod URL, the host UI now shows a compact banner with local-run steps and a copyable local host URL template.
 
 Direct host URL (Jeopardy app only): [http://localhost:3003/jeopardy/host](http://localhost:3003/jeopardy/host)
 
