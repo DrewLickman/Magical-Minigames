@@ -9,6 +9,7 @@ import {
   getEnvBuzzerWsOverride,
   parseBuzzerPort,
 } from "@/lib/buzzerWsUrl";
+import { normalizeRoomCode } from "@/lib/roomCode";
 
 const PLAYER_STORAGE_KEY = "magical_jeopardy_buzzer_player_v1";
 const REMEMBER_KEY = "magical_jeopardy_buzzer_remember_v1";
@@ -64,18 +65,18 @@ function saveStoredPlayerId(playerId: string) {
 
 export function BuzzerClient() {
   const params = useSearchParams();
-  const roomFromQuery = params.get("room")?.trim().toUpperCase() ?? "";
+  const roomFromQuery = normalizeRoomCode(params.get("room")?.trim() ?? "");
   const hostFromQuery = params.get("host")?.trim() ?? "";
   const portFromQuery = params.get("port");
 
-  const [room, setRoom] = useState(roomFromQuery);
+  const [room, setRoom] = useState(() => normalizeRoomCode(roomFromQuery));
   const [displayName, setDisplayName] = useState("");
   const [wsHost, setWsHost] = useState("");
   const [wsPort, setWsPort] = useState(8787);
   const [connected, setConnected] = useState(false);
   const [roundOpen, setRoundOpen] = useState(false);
   const [playerId, setPlayerId] = useState<string | null>(null);
-  const [rejectReason, setRejectReason] = useState<string | null>(null);
+  const [score, setScore] = useState(0);
   const [highlight, setHighlight] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -113,7 +114,7 @@ export function BuzzerClient() {
       const remembered = loadRemembered();
       const portParsed = parseBuzzerPort(portFromQuery);
 
-      if (roomFromQuery) setRoom(roomFromQuery);
+      if (roomFromQuery) setRoom(normalizeRoomCode(roomFromQuery));
       if (hostFromQuery) {
         setWsHost(hostFromQuery);
       } else if (remembered?.wsHost) {
@@ -131,7 +132,15 @@ export function BuzzerClient() {
   }, [roomFromQuery, hostFromQuery, portFromQuery]);
 
   const canConnect =
-    room.trim().length > 0 && resolvedWsUrl.trim().startsWith("ws");
+    normalizeRoomCode(room).length > 0 &&
+    displayName.trim().length > 0 &&
+    resolvedWsUrl.trim().startsWith("ws");
+
+  useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7622/ingest/1302b181-d6d7-4b6e-bbe5-61c8fc200112',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4a45cf'},body:JSON.stringify({sessionId:'4a45cf',runId:'run2',hypothesisId:'H5',location:'BuzzerClient.tsx:canConnect-state',message:'Join eligibility state',data:{roomRaw:room,roomNormalized:normalizeRoomCode(room),displayNamePresent:Boolean(displayName.trim()),resolvedWsUrl,canConnect,fullInvite,wsHost,wsPort},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+  }, [room, displayName, resolvedWsUrl, canConnect, fullInvite, wsHost, wsPort]);
 
   const disconnect = useCallback(() => {
     try {
@@ -142,12 +151,16 @@ export function BuzzerClient() {
     wsRef.current = null;
     setConnected(false);
     setRoundOpen(false);
+    setScore(0);
   }, []);
 
   const connect = useCallback(() => {
     disconnect();
-    const r = room.trim().toUpperCase();
+    const r = normalizeRoomCode(room);
     const url = resolvedWsUrl;
+    // #region agent log
+    fetch('http://127.0.0.1:7622/ingest/1302b181-d6d7-4b6e-bbe5-61c8fc200112',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4a45cf'},body:JSON.stringify({sessionId:'4a45cf',runId:'run1',hypothesisId:'H1',location:'BuzzerClient.tsx:connect(start)',message:'Buzzer connect attempt',data:{roomRaw:room,roomNormalized:r,url,displayNamePresent:Boolean(displayName.trim())},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     if (!r || !url.startsWith("ws")) return;
 
     const ws = new WebSocket(url);
@@ -155,6 +168,9 @@ export function BuzzerClient() {
 
     ws.onopen = () => {
       setConnected(true);
+      // #region agent log
+      fetch('http://127.0.0.1:7622/ingest/1302b181-d6d7-4b6e-bbe5-61c8fc200112',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4a45cf'},body:JSON.stringify({sessionId:'4a45cf',runId:'run1',hypothesisId:'H3',location:'BuzzerClient.tsx:ws.onopen',message:'Buzzer socket opened',data:{room:r,url},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
       if (!getEnvBuzzerWsOverride()) {
         saveRemembered({
           wsHost: wsHost.trim() || window.location.hostname,
@@ -191,6 +207,9 @@ export function BuzzerClient() {
       }
 
       if (msg.type === "helloAck") {
+        // #region agent log
+        fetch('http://127.0.0.1:7622/ingest/1302b181-d6d7-4b6e-bbe5-61c8fc200112',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4a45cf'},body:JSON.stringify({sessionId:'4a45cf',runId:'run1',hypothesisId:'H4',location:'BuzzerClient.tsx:ws.onmessage(helloAck)',message:'Buzzer hello acknowledged',data:{room:r,playerId:typeof msg.playerId==='string'?msg.playerId:'(none)'},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
         const pid = msg.playerId;
         if (typeof pid === "string" && pid) {
           setPlayerId(pid);
@@ -200,15 +219,10 @@ export function BuzzerClient() {
 
       if (msg.type === "roundOpen") {
         setRoundOpen(true);
-        setRejectReason(null);
       }
 
       if (msg.type === "roundLocked") {
         setRoundOpen(false);
-      }
-
-      if (msg.type === "reject") {
-        setRejectReason(typeof msg.reason === "string" ? msg.reason : "reject");
       }
 
       if (msg.type === "state") {
@@ -228,7 +242,6 @@ export function BuzzerClient() {
   useEffect(() => () => disconnect(), [disconnect]);
 
   const buzz = () => {
-    setRejectReason(null);
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     ws.send(JSON.stringify({ type: "buzz" }));
@@ -252,6 +265,35 @@ export function BuzzerClient() {
     !envOverride &&
     (pageHost === "localhost" || pageHost === "127.0.0.1") &&
     !wsHost.trim();
+
+  if (connected) {
+    return (
+      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-3 px-4 py-4">
+        <div className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
+          <p className="truncate text-sm font-medium text-[var(--foreground)]">
+            {displayName.trim() || "Player"}
+          </p>
+          <p className="font-mono text-sm font-semibold text-[var(--foreground)]">
+            ${score}
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={!roundOpen}
+          onClick={buzz}
+          className={`min-h-[8rem] flex-1 rounded-2xl border-4 text-3xl font-black transition sm:text-4xl ${
+            highlight
+              ? "scale-95 border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-foreground)]"
+              : roundOpen
+                ? "border-[var(--accent)] bg-[var(--surface)] text-[var(--foreground)] active:scale-[0.98]"
+                : "cursor-not-allowed border-[var(--border)] bg-[var(--surface)] text-[var(--muted)] opacity-60"
+          }`}
+        >
+          BUZZ
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-4 py-10">
@@ -286,7 +328,7 @@ export function BuzzerClient() {
           </span>
           <input
             value={room}
-            onChange={(e) => setRoom(e.target.value.toUpperCase())}
+            onChange={(e) => setRoom(normalizeRoomCode(e.target.value))}
             className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 font-mono text-[var(--foreground)] outline-none ring-[var(--accent)] focus:ring-2"
             autoComplete="off"
           />
@@ -351,12 +393,6 @@ export function BuzzerClient() {
                 the laptop&apos;s Wi‑Fi IP above.
               </p>
             ) : null}
-            <p className="font-mono text-xs text-[var(--muted)]">
-              WebSocket:{" "}
-              <span className="break-all text-[var(--foreground)]">
-                {resolvedWsUrl}
-              </span>
-            </p>
           </div>
         </details>
       ) : null}
@@ -369,29 +405,26 @@ export function BuzzerClient() {
       >
         Join
       </button>
-      {connected ? (
-        <button
-          type="button"
-          onClick={disconnect}
-          className="w-full rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--foreground)]"
-        >
-          Leave
-        </button>
+      {!canConnect ? (
+        // #region agent log
+        (() => {
+          fetch('http://127.0.0.1:7622/ingest/1302b181-d6d7-4b6e-bbe5-61c8fc200112',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4a45cf'},body:JSON.stringify({sessionId:'4a45cf',runId:'run3',hypothesisId:'H5',location:'BuzzerClient.tsx:join-disabled-render',message:'Join rendered disabled',data:{roomRaw:room,roomNormalized:normalizeRoomCode(room),displayName,displayNamePresent:Boolean(displayName.trim()),resolvedWsUrl,connected,canConnect},timestamp:Date.now()})}).catch(()=>{});
+          return null;
+        })()
+        // #endregion
+      ) : null}
+      {!displayName.trim() ? (
+        <p className="text-center text-xs text-[var(--muted)]">
+          Enter a name to enable Join.
+        </p>
       ) : null}
 
       <p className="text-center text-xs text-[var(--muted)]">
-        {connected ? (
-          <>
-            <span className="text-[var(--success)]">Connected</span>
-            {playerId ? (
-              <span className="ml-2 font-mono text-[var(--foreground)]">
-                id {playerId.slice(0, 8)}…
-              </span>
-            ) : null}
-          </>
-        ) : (
+      {connected ? null : (
+        <>
           <span className="text-[var(--danger)]">Not connected</span>
-        )}
+        </>
+      )}
         {!connected && canConnect ? (
           <>
             {" "}
@@ -406,33 +439,8 @@ export function BuzzerClient() {
         ) : null}
       </p>
 
-      {rejectReason ? (
-        <p className="text-center text-sm text-[var(--danger)]">
-          Buzz ignored ({rejectReason})
-        </p>
-      ) : null}
-
-      <button
-        type="button"
-        disabled={!connected || !roundOpen}
-        onClick={buzz}
-        className={`mt-auto min-h-[8rem] rounded-2xl border-4 text-3xl font-black transition sm:text-4xl ${
-          highlight
-            ? "scale-95 border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-foreground)]"
-            : roundOpen
-              ? "border-[var(--accent)] bg-[var(--surface)] text-[var(--foreground)] active:scale-[0.98]"
-              : "cursor-not-allowed border-[var(--border)] bg-[var(--surface)] text-[var(--muted)] opacity-60"
-        }`}
-      >
-        BUZZ
-      </button>
-
       <p className="pb-8 text-center text-xs text-[var(--muted)]">
-        {roundOpen
-          ? "Question is open — buzz now."
-          : connected
-            ? "Wait for the host to show a question."
-            : "Connect after the host starts the game."}
+        Connect after the host starts the game.
       </p>
     </div>
   );

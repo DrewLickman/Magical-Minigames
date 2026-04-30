@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { BoardModel } from "@/lib/boardJson";
 import { parseBoardJsonText } from "@/lib/boardJson";
@@ -14,17 +13,9 @@ import {
   savePersistedHostState,
   type Contestant,
 } from "@/lib/hostStorage";
+import { normalizeRoomCode, randomRoomCode } from "@/lib/roomCode";
 
 type CluePhase = "board" | "question" | "answer";
-
-function randomRoomCode(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let s = "";
-  for (let i = 0; i < 6; i++) {
-    s += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return s;
-}
 
 function emptyPlayed(): boolean[][] {
   return Array.from({ length: 5 }, () => Array.from({ length: 5 }, () => false));
@@ -47,7 +38,6 @@ export function HostGameClient({ templateHref }: { templateHref: string }) {
   const [buzzerLanHost, setBuzzerLanHost] = useState("");
   const [buzzerPort, setBuzzerPort] = useState(8787);
   const [inviteCopied, setInviteCopied] = useState(false);
-  const [clientHostname, setClientHostname] = useState("");
   const [buzzerConnected, setBuzzerConnected] = useState(false);
   const [buzzerUnlocked, setBuzzerUnlocked] = useState(false);
   const [firstBuzz, setFirstBuzz] = useState<{
@@ -55,8 +45,22 @@ export function HostGameClient({ templateHref }: { templateHref: string }) {
     playerId: string;
     at: number;
   } | null>(null);
+  const [buzzQueue, setBuzzQueue] = useState<
+    Array<{ name: string; playerId: string; at: number }>
+  >([]);
+  const [connectedBuzzers, setConnectedBuzzers] = useState(0);
+  const [connectedRoster, setConnectedRoster] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
 
   const wsRef = useRef<WebSocket | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    // #region agent log
+    fetch('http://127.0.0.1:7622/ingest/1302b181-d6d7-4b6e-bbe5-61c8fc200112',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4a45cf'},body:JSON.stringify({sessionId:'4a45cf',runId:'run4',hypothesisId:'H7',location:'HostGameClient.tsx:mount',message:'Host component mounted',data:{href:window.location.href,pathname:window.location.pathname},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+  }, []);
 
   const hostWsConnectUrl = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -67,27 +71,20 @@ export function HostGameClient({ templateHref }: { templateHref: string }) {
     });
   }, [buzzerLanHost, buzzerPort]);
 
-  const buzzerInviteRelativeHref = useMemo(() => {
-    const hostForPhones =
-      typeof window !== "undefined"
-        ? buzzerLanHost.trim() || window.location.hostname
-        : buzzerLanHost.trim();
-    const q = new URLSearchParams();
-    q.set("room", roomCode.trim());
-    q.set("host", hostForPhones);
-    q.set("port", String(buzzerPort));
-    return `/buzzer?${q.toString()}`;
-  }, [roomCode, buzzerLanHost, buzzerPort]);
-
   useEffect(() => {
     queueMicrotask(() => {
       const persisted = loadPersistedHostState();
       const buzz = loadBuzzerConnectionPrefs();
       const hn =
         typeof window !== "undefined" ? window.location.hostname : "";
+      const persistedRoom = normalizeRoomCode(buzz?.roomCode ?? "");
+      const chosenRoom = persistedRoom || randomRoomCode();
       setRoomCode(
-        buzz?.roomCode && buzz.roomCode.trim() ? buzz.roomCode : randomRoomCode(),
+        chosenRoom,
       );
+      // #region agent log
+      fetch('http://127.0.0.1:7622/ingest/1302b181-d6d7-4b6e-bbe5-61c8fc200112',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4a45cf'},body:JSON.stringify({sessionId:'4a45cf',runId:'run3',hypothesisId:'H6',location:'HostGameClient.tsx:init-room',message:'Host selected initial room code',data:{persistedRoom,chosenRoom},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
       if (buzz && typeof buzz.lanHost === "string") {
         setBuzzerLanHost(buzz.lanHost);
       } else if (hn === "localhost" || hn === "127.0.0.1") {
@@ -120,12 +117,6 @@ export function HostGameClient({ templateHref }: { templateHref: string }) {
   }, []);
 
   useEffect(() => {
-    queueMicrotask(() => {
-      setClientHostname(window.location.hostname);
-    });
-  }, []);
-
-  useEffect(() => {
     savePersistedHostState({
       contestants,
       boardJson: board ? boardToImportJson(board) : null,
@@ -134,10 +125,44 @@ export function HostGameClient({ templateHref }: { templateHref: string }) {
 
   useEffect(() => {
     saveBuzzerConnectionPrefs({
-      roomCode: roomCode.trim(),
+      roomCode: normalizeRoomCode(roomCode),
       lanHost: buzzerLanHost.trim(),
       buzzerPort,
     });
+  }, [roomCode, buzzerLanHost, buzzerPort]);
+
+  useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7622/ingest/1302b181-d6d7-4b6e-bbe5-61c8fc200112',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4a45cf'},body:JSON.stringify({sessionId:'4a45cf',runId:'run4',hypothesisId:'H6',location:'HostGameClient.tsx:roomCode-change',message:'Host room code state changed',data:{roomCode,normalized:normalizeRoomCode(roomCode)},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+  }, [roomCode]);
+
+  const copyContestantInvite = useCallback(async () => {
+    if (typeof window === "undefined") return;
+    const room = normalizeRoomCode(roomCode);
+    if (!room) return;
+    const hostForPhones = buzzerLanHost.trim() || window.location.hostname;
+    const basePath =
+      (process.env.NEXT_PUBLIC_BASE_PATH?.trim() || "/jeopardy").replace(
+        /\/$/,
+        "",
+      ) || "";
+    const query = new URLSearchParams({
+      room,
+      host: hostForPhones,
+      port: String(buzzerPort),
+    });
+    const url = new URL(
+      `${basePath}/buzzer?${query.toString()}`,
+      window.location.origin,
+    );
+    try {
+      await navigator.clipboard.writeText(url.toString());
+      setInviteCopied(true);
+      window.setTimeout(() => setInviteCopied(false), 1800);
+    } catch {
+      /* ignore clipboard errors */
+    }
   }, [roomCode, buzzerLanHost, buzzerPort]);
 
   const sendHostWs = useCallback((payload: Record<string, unknown>) => {
@@ -148,21 +173,11 @@ export function HostGameClient({ templateHref }: { templateHref: string }) {
   }, []);
 
   useEffect(() => {
-    if (setupPhase) {
-      if (wsRef.current) {
-        try {
-          wsRef.current.close();
-        } catch {
-          /* ignore */
-        }
-        wsRef.current = null;
-      }
-      queueMicrotask(() => setBuzzerConnected(false));
-      return;
-    }
-
     const url = hostWsConnectUrl.trim();
-    if (!url.startsWith("ws://") && !url.startsWith("wss://")) {
+    if (
+      !roomCode.trim() ||
+      (!url.startsWith("ws://") && !url.startsWith("wss://"))
+    ) {
       queueMicrotask(() => setBuzzerConnected(false));
       return;
     }
@@ -174,6 +189,9 @@ export function HostGameClient({ templateHref }: { templateHref: string }) {
     ws.onopen = () => {
       if (cancelled) return;
       setBuzzerConnected(true);
+      // #region agent log
+      fetch('http://127.0.0.1:7622/ingest/1302b181-d6d7-4b6e-bbe5-61c8fc200112',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4a45cf'},body:JSON.stringify({sessionId:'4a45cf',runId:'run1',hypothesisId:'H2',location:'HostGameClient.tsx:ws.onopen',message:'Host socket opened, sending hello',data:{roomCode,hostWsConnectUrl:url},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
       ws.send(
         JSON.stringify({
           type: "hello",
@@ -201,7 +219,29 @@ export function HostGameClient({ templateHref }: { templateHref: string }) {
         return;
       }
       if (msg.type === "state") {
+        // #region agent log
+        fetch('http://127.0.0.1:7622/ingest/1302b181-d6d7-4b6e-bbe5-61c8fc200112',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4a45cf'},body:JSON.stringify({sessionId:'4a45cf',runId:'run1',hypothesisId:'H4',location:'HostGameClient.tsx:ws.onmessage(state)',message:'Host received room state',data:{roomCode,unlocked:Boolean(msg.unlocked),hasFirstBuzz:Boolean(msg.firstBuzz)},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
         setBuzzerUnlocked(Boolean(msg.unlocked));
+        setConnectedBuzzers(
+          typeof msg.connectedCount === "number" ? msg.connectedCount : 0,
+        );
+        const rosterRaw = Array.isArray(msg.connectedBuzzers)
+          ? msg.connectedBuzzers
+          : [];
+        const roster = rosterRaw
+          .map((r) => {
+            const row = r as { id?: unknown; name?: unknown };
+            return {
+              id: typeof row.id === "string" ? row.id : "",
+              name:
+                typeof row.name === "string" && row.name.trim()
+                  ? row.name.trim()
+                  : "Player",
+            };
+          })
+          .filter((r) => r.id);
+        setConnectedRoster(roster);
         const fb = msg.firstBuzz as
           | { id?: string; name?: string; at?: number }
           | null
@@ -215,6 +255,7 @@ export function HostGameClient({ templateHref }: { templateHref: string }) {
           setFirstBuzz({ name: fb.name, playerId: fb.id, at: fb.at });
         } else {
           setFirstBuzz(null);
+          setBuzzQueue([]);
         }
       }
       if (msg.type === "firstBuzz") {
@@ -223,6 +264,20 @@ export function HostGameClient({ templateHref }: { templateHref: string }) {
           typeof msg.playerId === "string" ? msg.playerId : "?";
         const at = typeof msg.at === "number" ? msg.at : Date.now();
         setFirstBuzz({ name, playerId, at });
+        setBuzzQueue((prev) => {
+          if (prev.some((p) => p.playerId === playerId)) return prev;
+          return [...prev, { name, playerId, at }];
+        });
+      }
+      if (msg.type === "buzzQueue") {
+        const name = typeof msg.name === "string" ? msg.name : "Player";
+        const playerId =
+          typeof msg.playerId === "string" ? msg.playerId : "?";
+        const at = typeof msg.at === "number" ? msg.at : Date.now();
+        setBuzzQueue((prev) => {
+          if (prev.some((p) => p.playerId === playerId)) return prev;
+          return [...prev, { name, playerId, at }];
+        });
       }
     };
 
@@ -235,15 +290,32 @@ export function HostGameClient({ templateHref }: { templateHref: string }) {
       }
       if (wsRef.current === ws) wsRef.current = null;
     };
-  }, [setupPhase, hostWsConnectUrl, roomCode]);
+  }, [hostWsConnectUrl, roomCode]);
+
+  useEffect(() => {
+    if (!connectedRoster.length) return;
+    setContestants((prev) => {
+      const known = new Set(
+        prev.map((c) => c.name.trim().toLowerCase()).filter(Boolean),
+      );
+      const additions = connectedRoster
+        .filter((r) => !known.has(r.name.trim().toLowerCase()))
+        .map((r) => createContestant(r.name));
+      return additions.length ? [...prev, ...additions] : prev;
+    });
+  }, [connectedRoster]);
 
   useEffect(() => {
     if (setupPhase) return;
     if (cluePhase === "question") {
+      setFirstBuzz(null);
+      setBuzzQueue([]);
       sendHostWs({ type: "unlock" });
     } else if (cluePhase === "answer") {
       sendHostWs({ type: "lock" });
     } else {
+      setFirstBuzz(null);
+      setBuzzQueue([]);
       sendHostWs({ type: "resetRound" });
     }
   }, [cluePhase, setupPhase, sendHostWs]);
@@ -345,6 +417,19 @@ export function HostGameClient({ templateHref }: { templateHref: string }) {
     setSelected(null);
   };
 
+  const advanceQueuedBuzzer = () => {
+    setBuzzQueue((prev) => {
+      if (prev.length <= 1) {
+        setFirstBuzz(null);
+        return [];
+      }
+      const rest = prev.slice(1);
+      const next = rest[0];
+      setFirstBuzz(next ?? null);
+      return rest;
+    });
+  };
+
   const exportBoardJson = () => {
     if (!board) return;
     const blob = new Blob([boardToImportJson(board)], {
@@ -358,39 +443,19 @@ export function HostGameClient({ templateHref }: { templateHref: string }) {
     URL.revokeObjectURL(url);
   };
 
-  const copyBuzzerInvite = useCallback(async () => {
-    if (typeof window === "undefined") return;
-    const needsWifiIp =
-      clientHostname === "localhost" || clientHostname === "127.0.0.1";
-    if (needsWifiIp && !buzzerLanHost.trim()) return;
-    const basePath =
-      process.env.NEXT_PUBLIC_BASE_PATH?.replace(/\/$/, "") || "/jeopardy";
-    const hostForPhones =
-      buzzerLanHost.trim() || window.location.hostname;
-    const q = new URLSearchParams();
-    q.set("room", roomCode.trim());
-    q.set("host", hostForPhones);
-    q.set("port", String(buzzerPort));
-    const u = new URL(
-      `${basePath}/buzzer?${q.toString()}`,
-      window.location.origin,
-    );
-    try {
-      await navigator.clipboard.writeText(u.toString());
-      setInviteCopied(true);
-      window.setTimeout(() => setInviteCopied(false), 2000);
-    } catch {
-      /* ignore */
-    }
-  }, [buzzerLanHost, buzzerPort, clientHostname, roomCode]);
-
   const regenerateRoomCode = () => {
-    setRoomCode(randomRoomCode());
+    const nextRoom = randomRoomCode();
+    setRoomCode(nextRoom);
+    // #region agent log
+    fetch('http://127.0.0.1:7622/ingest/1302b181-d6d7-4b6e-bbe5-61c8fc200112',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4a45cf'},body:JSON.stringify({sessionId:'4a45cf',runId:'run3',hypothesisId:'H6',location:'HostGameClient.tsx:regenerateRoomCode',message:'Host generated new room code',data:{nextRoom},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
   };
 
-  const onLocalhostBrowser =
-    clientHostname === "localhost" || clientHostname === "127.0.0.1";
-  const showWifiIpHint = onLocalhostBrowser && !buzzerLanHost.trim();
+  useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7622/ingest/1302b181-d6d7-4b6e-bbe5-61c8fc200112',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4a45cf'},body:JSON.stringify({sessionId:'4a45cf',runId:'run5',hypothesisId:'H8',location:'HostGameClient.tsx:setupPhase-change',message:'Host setup phase changed',data:{setupPhase},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+  }, [setupPhase]);
 
   if (setupPhase) {
     return (
@@ -414,66 +479,49 @@ export function HostGameClient({ templateHref }: { templateHref: string }) {
             <code className="font-mono text-[var(--foreground)]">
               npm run dev:jeopardy:party
             </code>{" "}
-            once (starts the game + buzzer). Then use the button below.
+            once (starts the game + buzzer). Then copy the buzzer URL printed in
+            the terminal and share it with contestants.
           </p>
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2">
-            <span className="text-xs text-[var(--muted)]">Room</span>
-            <span className="font-mono text-sm font-semibold text-[var(--foreground)]">
-              {roomCode.trim() || "—"}
-            </span>
-            <button
-              type="button"
-              onClick={regenerateRoomCode}
-              className="text-xs font-medium text-[var(--accent)] underline"
-            >
-              New code
-            </button>
+          <div className="space-y-2 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-[var(--muted)]">Room code</span>
+              <button
+                type="button"
+                onMouseDown={() => {
+                  // #region agent log
+                  fetch('http://127.0.0.1:7622/ingest/1302b181-d6d7-4b6e-bbe5-61c8fc200112',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4a45cf'},body:JSON.stringify({sessionId:'4a45cf',runId:'run5',hypothesisId:'H8',location:'HostGameClient.tsx:new-code-mousedown',message:'New code button pointer down',data:{setupPhase,roomCode},timestamp:Date.now()})}).catch(()=>{});
+                  // #endregion
+                }}
+                onClick={regenerateRoomCode}
+                className="text-xs font-medium text-[var(--accent)] underline"
+              >
+                New code
+              </button>
+            </div>
+            <input
+              value={roomCode}
+              onChange={(e) => setRoomCode(normalizeRoomCode(e.target.value))}
+              placeholder="Enter room code"
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 font-mono text-sm text-[var(--foreground)] outline-none ring-[var(--accent)] focus:ring-2"
+              autoComplete="off"
+            />
           </div>
-          {onLocalhostBrowser ? (
-            <>
-              <label className="block text-xs text-[var(--muted)]" htmlFor="wifiip">
-                Your Wi‑Fi IP (so phones can reach this PC)
-              </label>
-              <input
-                id="wifiip"
-                value={buzzerLanHost}
-                onChange={(e) => setBuzzerLanHost(e.target.value)}
-                placeholder="e.g. 192.168.1.50 (ipconfig on Windows)"
-                className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 font-mono text-sm text-[var(--foreground)] outline-none ring-[var(--accent)] focus:ring-2"
-                autoComplete="off"
-              />
-              {showWifiIpHint ? (
-                <p className="text-xs text-[var(--accent)]">
-                  You&apos;re on {clientHostname}. Enter this laptop&apos;s LAN
-                  IP before copying the link, or open the host page using{" "}
-                  <code className="font-mono">http://&lt;that-ip&gt;:3003/…</code>{" "}
-                  instead.
-                </p>
-              ) : null}
-            </>
-          ) : null}
           <button
             type="button"
-            onClick={() => void copyBuzzerInvite()}
-            disabled={showWifiIpHint}
-            title={
-              showWifiIpHint
-                ? "Enter your Wi-Fi IP above first"
-                : "Copy link to send to players"
-            }
-            className="w-full rounded-lg bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-[var(--accent-foreground)] disabled:cursor-not-allowed disabled:opacity-40"
+            onClick={() => void copyContestantInvite()}
+            className="w-full rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[var(--accent-foreground)]"
           >
-            {inviteCopied ? "Copied!" : "Copy link for players"}
+            {inviteCopied
+              ? "Invite copied"
+              : "Copy contestant invite (room included)"}
           </button>
-          <Link
-            href={buzzerInviteRelativeHref}
-            className="block text-center text-xs text-[var(--accent)] underline"
-          >
-            Open buzzer on this device (test)
-          </Link>
+          <p className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs text-[var(--muted)]">
+            Contestants can join directly from this copied link (room included),
+            or use the terminal link and enter room <code>{roomCode || "—"}</code>.
+          </p>
           <details className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2">
             <summary className="cursor-pointer text-xs font-medium text-[var(--foreground)]">
-              Advanced (port / edit room / troubleshooting)
+              Advanced (buzzer host/port / edit room / troubleshooting)
             </summary>
             <div className="mt-3 space-y-3 border-t border-[var(--border)] pt-3">
               <label className="block text-xs text-[var(--muted)]" htmlFor="room-edit">
@@ -482,28 +530,24 @@ export function HostGameClient({ templateHref }: { templateHref: string }) {
               <input
                 id="room-edit"
                 value={roomCode}
-                onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                onChange={(e) => setRoomCode(normalizeRoomCode(e.target.value))}
                 className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 font-mono text-sm text-[var(--foreground)] outline-none ring-[var(--accent)] focus:ring-2"
                 autoComplete="off"
               />
-              {onLocalhostBrowser ? null : (
-                <>
-                  <label
-                    className="block text-xs text-[var(--muted)]"
-                    htmlFor="lanhost-adv"
-                  >
-                    Override host in invite link (optional)
-                  </label>
-                  <input
-                    id="lanhost-adv"
-                    value={buzzerLanHost}
-                    onChange={(e) => setBuzzerLanHost(e.target.value)}
-                    placeholder="Leave empty to use this page’s hostname"
-                    className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 font-mono text-sm text-[var(--foreground)] outline-none ring-[var(--accent)] focus:ring-2"
-                    autoComplete="off"
-                  />
-                </>
-              )}
+              <label
+                className="block text-xs text-[var(--muted)]"
+                htmlFor="lanhost-adv"
+              >
+                Buzzer server host/IP (optional)
+              </label>
+              <input
+                id="lanhost-adv"
+                value={buzzerLanHost}
+                onChange={(e) => setBuzzerLanHost(e.target.value)}
+                placeholder="Leave empty to use this page’s hostname"
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 font-mono text-sm text-[var(--foreground)] outline-none ring-[var(--accent)] focus:ring-2"
+                autoComplete="off"
+              />
               <label className="block text-xs text-[var(--muted)]" htmlFor="bzport">
                 Buzzer server port
               </label>
@@ -518,12 +562,6 @@ export function HostGameClient({ templateHref }: { templateHref: string }) {
                 }
                 className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 font-mono text-sm text-[var(--foreground)] outline-none ring-[var(--accent)] focus:ring-2"
               />
-              <p className="font-mono text-xs text-[var(--muted)]">
-                WebSocket for this laptop:{" "}
-                <span className="break-all text-[var(--foreground)]">
-                  {hostWsConnectUrl || "…"}
-                </span>
-              </p>
               {process.env.NEXT_PUBLIC_JEOPARDY_BUZZER_WS_URL?.trim() ? (
                 <p className="text-xs text-[var(--muted)]">
                   <code className="font-mono text-[var(--foreground)]">
@@ -534,6 +572,22 @@ export function HostGameClient({ templateHref }: { templateHref: string }) {
               ) : null}
             </div>
           </details>
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+              Connected buzzers ({connectedRoster.length})
+            </p>
+            {connectedRoster.length ? (
+              <ul className="mt-2 space-y-1 text-sm text-[var(--foreground)]">
+                {connectedRoster.map((r) => (
+                  <li key={r.id}>{r.name}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-2 text-xs text-[var(--muted)]">
+                No buzzers connected yet.
+              </p>
+            )}
+          </div>
         </section>
 
         <section className="space-y-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
@@ -624,8 +678,13 @@ export function HostGameClient({ templateHref }: { templateHref: string }) {
           onClick={beginPlay}
           className="rounded-lg bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-[var(--accent-foreground)] disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Start game
+          Start Game
         </button>
+        {!board ? (
+          <p className="text-center text-xs text-[var(--muted)]">
+            Import a board JSON to enable Start game.
+          </p>
+        ) : null}
       </div>
     );
   }
@@ -671,17 +730,12 @@ export function HostGameClient({ templateHref }: { templateHref: string }) {
           ))}
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
-          <span>
-            Buzzers:{" "}
-            <span
-              className={
-                buzzerConnected
-                  ? "text-[var(--success)]"
-                  : "text-[var(--danger)]"
-              }
-            >
-              {buzzerConnected ? "WS connected" : "WS offline"}
-            </span>
+          <span
+            className={
+              buzzerConnected ? "text-[var(--success)]" : "text-[var(--danger)]"
+            }
+          >
+            {buzzerConnected ? `${connectedBuzzers} connected` : "0 connected"}
           </span>
           <span className="font-mono text-[var(--foreground)]">
             Room {roomCode}
@@ -693,11 +747,6 @@ export function HostGameClient({ templateHref }: { templateHref: string }) {
                 ? "Buzzers locked"
                 : ""}
           </span>
-          {firstBuzz ? (
-            <span className="rounded-md bg-[var(--surface)] px-2 py-1 font-medium text-[var(--foreground)]">
-              First: {firstBuzz.name}
-            </span>
-          ) : null}
         </div>
       </header>
 
@@ -742,22 +791,7 @@ export function HostGameClient({ templateHref }: { templateHref: string }) {
 
         {cluePhase !== "board" && clue ? (
           <>
-            <button
-              type="button"
-              aria-label="Left action"
-              className="fixed inset-y-0 bottom-28 left-0 z-20 w-1/2 cursor-w-resize bg-transparent"
-              onClick={() =>
-                cluePhase === "question" ? questionLeft() : answerLeft()
-              }
-            />
-            <button
-              type="button"
-              aria-label="Right action"
-              className="fixed inset-y-0 bottom-28 right-0 z-20 w-1/2 cursor-e-resize bg-transparent"
-              onClick={() =>
-                cluePhase === "question" ? questionRight() : consumeWithoutPoints()
-              }
-            />
+            <div className="pointer-events-none fixed inset-0 z-[5] bg-black/70" />
 
             <div className="pointer-events-none fixed inset-x-0 top-16 bottom-28 z-10 flex flex-col items-center justify-center px-6">
               <div
@@ -775,16 +809,90 @@ export function HostGameClient({ templateHref }: { templateHref: string }) {
               </div>
               <p className="pointer-events-none mt-6 max-w-xl text-center text-sm text-[var(--muted)]">
                 {cluePhase === "question"
-                  ? "Left: back to board · Right: show answer"
-                  : "Left: back without consuming · Right: consume clue (no points)"}
+                  ? "Use the buttons below to continue."
+                  : "Review answer, then choose an action below."}
               </p>
             </div>
+
+            <section className="fixed left-1/2 top-[62%] z-30 w-[min(44rem,92vw)] -translate-x-1/2 rounded-xl border border-[var(--border)] bg-[var(--surface)]/95 px-4 py-3 shadow-lg backdrop-blur">
+              <h3 className="text-center text-sm font-semibold uppercase tracking-wide text-[var(--foreground)]">
+                Buzz queue
+              </h3>
+              {firstBuzz ? (
+                <p className="mt-1 text-center text-base font-semibold text-[var(--accent)]">
+                  First: {firstBuzz.name}
+                </p>
+              ) : null}
+              {buzzQueue.length ? (
+                <ol className="mx-auto mt-2 max-h-24 w-full max-w-md overflow-y-auto text-sm text-[var(--foreground)]">
+                  {buzzQueue.map((entry, idx) => (
+                    <li key={`${entry.playerId}-${entry.at}-${idx}`}>
+                      {idx + 1}. {entry.name}
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="mt-2 text-center text-xs text-[var(--muted)]">
+                  No buzzes yet.
+                </p>
+              )}
+            </section>
+
+            <footer className="fixed inset-x-0 bottom-20 z-30 flex justify-center px-3">
+              <div className="flex w-full max-w-3xl gap-3">
+                {cluePhase === "question" ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={questionLeft}
+                      className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--background)]"
+                    >
+                      Back to board
+                    </button>
+                    <button
+                      type="button"
+                      onClick={questionRight}
+                      className="flex-1 rounded-lg bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-[var(--accent-foreground)]"
+                    >
+                      Show answer
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={answerLeft}
+                      className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--background)]"
+                    >
+                      Back without consuming
+                    </button>
+                    <button
+                      type="button"
+                      onClick={consumeWithoutPoints}
+                      className="flex-1 rounded-lg bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-[var(--accent-foreground)]"
+                    >
+                      Consume clue
+                    </button>
+                  </>
+                )}
+              </div>
+            </footer>
 
             {cluePhase === "answer" ? (
               <footer className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border)] bg-[var(--background)] px-3 py-3">
                 <p className="mb-2 text-center text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
                   Award ${pointForSelected} · tap a contestant
                 </p>
+                <div className="mx-auto mb-2 flex max-w-5xl justify-center">
+                  <button
+                    type="button"
+                    onClick={advanceQueuedBuzzer}
+                    disabled={buzzQueue.length <= 1}
+                    className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] disabled:opacity-40"
+                  >
+                    Next queued contestant
+                  </button>
+                </div>
                 <div className="mx-auto flex max-w-5xl flex-wrap justify-center gap-2">
                   {contestants.map((c) => (
                     <button

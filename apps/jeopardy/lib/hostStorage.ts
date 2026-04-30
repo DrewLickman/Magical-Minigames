@@ -2,6 +2,14 @@ import type { BoardModel } from "./boardJson";
 
 const STORAGE_PREFIX = "magical_jeopardy_host_v1";
 
+function createId(): string {
+  const maybeCrypto = globalThis.crypto as Crypto | undefined;
+  if (maybeCrypto && typeof maybeCrypto.randomUUID === "function") {
+    return maybeCrypto.randomUUID();
+  }
+  return `cid-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export type Contestant = {
   id: string;
   name: string;
@@ -30,7 +38,7 @@ export function loadPersistedHostState(): PersistedHostState | null {
     const normalized: Contestant[] = contestants.map((c) => {
       const row = c as Contestant;
       return {
-        id: typeof row.id === "string" ? row.id : crypto.randomUUID(),
+        id: typeof row.id === "string" ? row.id : createId(),
         name: typeof row.name === "string" ? row.name : "",
         score: typeof row.score === "number" && Number.isFinite(row.score) ? row.score : 0,
       };
@@ -55,7 +63,7 @@ export function savePersistedHostState(state: PersistedHostState): void {
 
 export function createContestant(name: string): Contestant {
   return {
-    id: crypto.randomUUID(),
+    id: createId(),
     name,
     score: 0,
   };

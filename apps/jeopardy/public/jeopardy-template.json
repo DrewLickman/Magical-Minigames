@@ -1,5 +1,5 @@
 {
-  "Category One": {
+  "Science": {
     "100": {
       "question": "This planet is known as the Red Planet.",
       "answer": "What is Mars?"
@@ -21,32 +21,32 @@
       "answer": "Who is Charles Darwin?"
     }
   },
-  "Category Two": {
-    "100": { "question": "Placeholder 100 clue.", "answer": "Placeholder answer." },
-    "200": { "question": "Placeholder 200 clue.", "answer": "Placeholder answer." },
-    "300": { "question": "Placeholder 300 clue.", "answer": "Placeholder answer." },
-    "400": { "question": "Placeholder 400 clue.", "answer": "Placeholder answer." },
-    "500": { "question": "Placeholder 500 clue.", "answer": "Placeholder answer." }
+  "Geography": {
+    "100": { "question": "This is the largest ocean on Earth.", "answer": "What is the Pacific Ocean?" },
+    "200": { "question": "Cairo is the capital of this country.", "answer": "What is Egypt?" },
+    "300": { "question": "This river runs through Paris.", "answer": "What is the Seine?" },
+    "400": { "question": "The Great Barrier Reef lies off the coast of this country.", "answer": "What is Australia?" },
+    "500": { "question": "Mount Kilimanjaro is located on this continent.", "answer": "What is Africa?" }
   },
-  "Category Three": {
-    "100": { "question": "Placeholder 100 clue.", "answer": "Placeholder answer." },
-    "200": { "question": "Placeholder 200 clue.", "answer": "Placeholder answer." },
-    "300": { "question": "Placeholder 300 clue.", "answer": "Placeholder answer." },
-    "400": { "question": "Placeholder 400 clue.", "answer": "Placeholder answer." },
-    "500": { "question": "Placeholder 500 clue.", "answer": "Placeholder answer." }
+  "Movies & TV": {
+    "100": { "question": "This wizarding hero has a lightning-shaped scar.", "answer": "Who is Harry Potter?" },
+    "200": { "question": "In Toy Story, this cowboy is Andy's favorite toy.", "answer": "Who is Woody?" },
+    "300": { "question": "The long-running animated family on Fox is this one.", "answer": "Who are the Simpsons?" },
+    "400": { "question": "This 1997 film about a doomed ship stars Leonardo DiCaprio and Kate Winslet.", "answer": "What is Titanic?" },
+    "500": { "question": "In Star Wars, this villain says, 'I am your father.'", "answer": "Who is Darth Vader?" }
   },
-  "Category Four": {
-    "100": { "question": "Placeholder 100 clue.", "answer": "Placeholder answer." },
-    "200": { "question": "Placeholder 200 clue.", "answer": "Placeholder answer." },
-    "300": { "question": "Placeholder 300 clue.", "answer": "Placeholder answer." },
-    "400": { "question": "Placeholder 400 clue.", "answer": "Placeholder answer." },
-    "500": { "question": "Placeholder 500 clue.", "answer": "Placeholder answer." }
+  "History": {
+    "100": { "question": "The United States celebrates Independence Day on this date in July.", "answer": "What is July 4th?" },
+    "200": { "question": "She was the first woman to fly solo across the Atlantic Ocean.", "answer": "Who is Amelia Earhart?" },
+    "300": { "question": "This wall in Germany fell in 1989, symbolizing the end of the Cold War era.", "answer": "What is the Berlin Wall?" },
+    "400": { "question": "This ancient civilization built Machu Picchu.", "answer": "Who were the Inca?" },
+    "500": { "question": "The Magna Carta was signed in this country in 1215.", "answer": "What is England?" }
   },
-  "Category Five": {
-    "100": { "question": "Placeholder 100 clue.", "answer": "Placeholder answer." },
-    "200": { "question": "Placeholder 200 clue.", "answer": "Placeholder answer." },
-    "300": { "question": "Placeholder 300 clue.", "answer": "Placeholder answer." },
-    "400": { "question": "Placeholder 400 clue.", "answer": "Placeholder answer." },
-    "500": { "question": "Placeholder 500 clue.", "answer": "Placeholder answer." }
+  "Wordplay": {
+    "100": { "question": "A word with the opposite meaning of 'hot.'", "answer": "What is cold?" },
+    "200": { "question": "This punctuation mark ends most questions.", "answer": "What is a question mark?" },
+    "300": { "question": "A word made from the first letters of a phrase, like NASA, is called this.", "answer": "What is an acronym?" },
+    "400": { "question": "A phrase like 'break a leg' that does not mean exactly what it says is this.", "answer": "What is an idiom?" },
+    "500": { "question": "A palindrome reads the same forward and backward, like this 3-letter word for a place to live.", "answer": "What is 'mom'?" }
   }
 }

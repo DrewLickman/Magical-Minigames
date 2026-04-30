@@ -5,15 +5,16 @@ Host loads a JSON board, runs the clue flow on a projector, and optionally colle
 ## Party night (three steps)
 
 1. From the **monorepo root**: `npm run dev:jeopardy:party` — starts the game UI and the buzzer WebSocket server together.
-2. Open the **host** page using your laptop’s **Wi‑Fi address** when you can (e.g. `http://192.168.1.50:3003/jeopardy/host` or via the hub on that same host). If you must use `localhost`, the host screen will ask for your Wi‑Fi IP once before you copy links.
-3. On the host lobby, tap **Copy link for players** and send that link to everyone. They open it, enter a name, and tap **Join**.
+2. Open the **host** page (`http://192.168.1.50:3003/jeopardy/host` or via hub), then use **Copy contestant invite (room included)**. This link includes room + host + port so contestants usually do not type a room code.
+3. Optional fallback: use the terminal line `**Share this link with the contestants: ...`** and then provide the room code shown in host lobby.
 
 Direct host URL (Jeopardy app only): [http://localhost:3003/jeopardy/host](http://localhost:3003/jeopardy/host)
 
 ## Troubleshooting
 
-- **Port already in use (`EADDRINUSE`)**: another process is using the buzzer port (default **8787**). Stop the old process or run with a different port, e.g. PowerShell: `$env:JEOPARDY_BUZZER_PORT=8788` before `npm run buzzer-server`, then set the same port under **Advanced** on the host and in invite links / buzzer page.
+- **Port already in use (`EADDRINUSE`)**: another process is using the buzzer port (default **8787**). Stop the old process or run with a different port, e.g. PowerShell: `$env:JEOPARDY_BUZZER_PORT=8788` before `npm run buzzer-server`, then set the same port under **Advanced** on the host and use the terminal-provided contestant link.
 - **Override WebSocket URL**: set `NEXT_PUBLIC_JEOPARDY_BUZZER_WS_URL` (documented in env sections of the hub / deploy runbooks). Host **Advanced** explains when this is active.
+- **Start game is disabled**: import a board JSON first (template at `public/jeopardy-template.json`). The lobby shows this reason inline when Start is disabled.
 
 ## Local development (UI only)
 
