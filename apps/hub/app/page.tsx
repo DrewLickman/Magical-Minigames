@@ -10,7 +10,7 @@ import {
   type PlayerProfile,
 } from "@minigames/shared";
 
-type GameId = "codenames" | "spyfall";
+type GameId = "codenames" | "spyfall" | "jeopardy";
 
 export default function Home() {
   const [profile, setProfile] = useState<PlayerProfile>(defaultPlayerProfile);
@@ -28,12 +28,17 @@ export default function Home() {
   };
 
   const trimmedLobby = lobbyCode.trim();
-  const canJoin = trimmedLobby.length > 0;
+  const canJoin =
+    gameId === "jeopardy" ? true : trimmedLobby.length > 0;
 
   const join = () => {
     if (!canJoin) return;
     writePlayerProfile(profile);
     const displayName = profile.displayName.trim() || undefined;
+    if (gameId === "jeopardy") {
+      window.location.assign("/jeopardy/host");
+      return;
+    }
     const url =
       gameId === "codenames"
         ? getCodenamesEntryUrl({
@@ -114,30 +119,37 @@ export default function Home() {
             >
               <option value="codenames">Codenames</option>
               <option value="spyfall">Spyfall</option>
+              <option value="jeopardy">Jeopardy (host)</option>
             </select>
           </div>
 
-          <div className="space-y-2">
-            <label
-              htmlFor="lobby"
-              className="block text-xs font-semibold uppercase tracking-wide text-[var(--muted)]"
-            >
-              Lobby code
-            </label>
-            <input
-              id="lobby"
-              autoComplete="off"
-              value={lobbyCode}
-              onChange={(e) => setLobbyCode(e.target.value.toUpperCase())}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && canJoin) {
-                  join();
-                }
-              }}
-              placeholder="e.g. LIVING-ROOM-7"
-              className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 font-mono uppercase tracking-wide text-[var(--foreground)] outline-none ring-[var(--accent)] focus:ring-2"
-            />
-          </div>
+          {gameId !== "jeopardy" ? (
+            <div className="space-y-2">
+              <label
+                htmlFor="lobby"
+                className="block text-xs font-semibold uppercase tracking-wide text-[var(--muted)]"
+              >
+                Lobby code
+              </label>
+              <input
+                id="lobby"
+                autoComplete="off"
+                value={lobbyCode}
+                onChange={(e) => setLobbyCode(e.target.value.toUpperCase())}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && canJoin) {
+                    join();
+                  }
+                }}
+                placeholder="e.g. LIVING-ROOM-7"
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 font-mono uppercase tracking-wide text-[var(--foreground)] outline-none ring-[var(--accent)] focus:ring-2"
+              />
+            </div>
+          ) : (
+            <p className="text-sm text-[var(--muted)]">
+              Opens the Jeopardy host board (projector). Lobby codes are not used.
+            </p>
+          )}
 
           <button
             type="button"
@@ -145,7 +157,7 @@ export default function Home() {
             onClick={join}
             className="w-full rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-[var(--accent-foreground)] transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Join game
+            {gameId === "jeopardy" ? "Open Jeopardy host" : "Join game"}
           </button>
         </div>
       </main>

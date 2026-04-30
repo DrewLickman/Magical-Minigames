@@ -1,0 +1,52 @@
+{
+  "Category One": {
+    "100": {
+      "question": "This planet is known as the Red Planet.",
+      "answer": "What is Mars?"
+    },
+    "200": {
+      "question": "Water freezes at 0 degrees on this temperature scale.",
+      "answer": "What is Celsius?"
+    },
+    "300": {
+      "question": "The speed of light in vacuum is approximately 300,000 km per this unit of time.",
+      "answer": "What is one second?"
+    },
+    "400": {
+      "question": "DNA stands for this.",
+      "answer": "What is deoxyribonucleic acid?"
+    },
+    "500": {
+      "question": "He published On the Origin of Species in 1859.",
+      "answer": "Who is Charles Darwin?"
+    }
+  },
+  "Category Two": {
+    "100": { "question": "Placeholder 100 clue.", "answer": "Placeholder answer." },
+    "200": { "question": "Placeholder 200 clue.", "answer": "Placeholder answer." },
+    "300": { "question": "Placeholder 300 clue.", "answer": "Placeholder answer." },
+    "400": { "question": "Placeholder 400 clue.", "answer": "Placeholder answer." },
+    "500": { "question": "Placeholder 500 clue.", "answer": "Placeholder answer." }
+  },
+  "Category Three": {
+    "100": { "question": "Placeholder 100 clue.", "answer": "Placeholder answer." },
+    "200": { "question": "Placeholder 200 clue.", "answer": "Placeholder answer." },
+    "300": { "question": "Placeholder 300 clue.", "answer": "Placeholder answer." },
+    "400": { "question": "Placeholder 400 clue.", "answer": "Placeholder answer." },
+    "500": { "question": "Placeholder 500 clue.", "answer": "Placeholder answer." }
+  },
+  "Category Four": {
+    "100": { "question": "Placeholder 100 clue.", "answer": "Placeholder answer." },
+    "200": { "question": "Placeholder 200 clue.", "answer": "Placeholder answer." },
+    "300": { "question": "Placeholder 300 clue.", "answer": "Placeholder answer." },
+    "400": { "question": "Placeholder 400 clue.", "answer": "Placeholder answer." },
+    "500": { "question": "Placeholder 500 clue.", "answer": "Placeholder answer." }
+  },
+  "Category Five": {
+    "100": { "question": "Placeholder 100 clue.", "answer": "Placeholder answer." },
+    "200": { "question": "Placeholder 200 clue.", "answer": "Placeholder answer." },
+    "300": { "question": "Placeholder 300 clue.", "answer": "Placeholder answer." },
+    "400": { "question": "Placeholder 400 clue.", "answer": "Placeholder answer." },
+    "500": { "question": "Placeholder 500 clue.", "answer": "Placeholder answer." }
+  }
+}

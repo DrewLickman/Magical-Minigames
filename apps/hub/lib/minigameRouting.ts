@@ -1,6 +1,7 @@
 type MinigameOriginEnv = {
   codenamesOrigin: string;
   spyfallOrigin: string;
+  jeopardyOrigin: string;
 };
 
 const PLACEHOLDER_MARKERS = ["YOUR_", "example.com", "changeme"];
@@ -19,6 +20,7 @@ export function getDevOrigins(): MinigameOriginEnv {
   return {
     codenamesOrigin: normalizeOrigin(process.env.CODENAMES_DEV_ORIGIN) || "http://localhost:3001",
     spyfallOrigin: normalizeOrigin(process.env.SPYFALL_DEV_ORIGIN) || "http://localhost:3002",
+    jeopardyOrigin: normalizeOrigin(process.env.JEOPARDY_DEV_ORIGIN) || "http://localhost:3003",
   };
 }
 
@@ -26,6 +28,7 @@ export function getProdOrigins(): MinigameOriginEnv {
   return {
     codenamesOrigin: normalizeOrigin(process.env.CODENAMES_PROD_ORIGIN),
     spyfallOrigin: normalizeOrigin(process.env.SPYFALL_PROD_ORIGIN),
+    jeopardyOrigin: normalizeOrigin(process.env.JEOPARDY_PROD_ORIGIN),
   };
 }
 
@@ -42,6 +45,12 @@ export function assertValidProdOrigins(origins: MinigameOriginEnv): void {
     problems.push("Missing SPYFALL_PROD_ORIGIN.");
   } else if (looksLikePlaceholder(origins.spyfallOrigin)) {
     problems.push("SPYFALL_PROD_ORIGIN still looks like a placeholder value.");
+  }
+
+  if (!origins.jeopardyOrigin) {
+    problems.push("Missing JEOPARDY_PROD_ORIGIN.");
+  } else if (looksLikePlaceholder(origins.jeopardyOrigin)) {
+    problems.push("JEOPARDY_PROD_ORIGIN still looks like a placeholder value.");
   }
 
   if (problems.length > 0) {
@@ -68,6 +77,14 @@ export function buildMinigameRewrites(origins: MinigameOriginEnv) {
     {
       source: "/spyfall/:path*",
       destination: `${origins.spyfallOrigin}/spyfall/:path*`,
+    },
+    {
+      source: "/jeopardy",
+      destination: `${origins.jeopardyOrigin}/jeopardy`,
+    },
+    {
+      source: "/jeopardy/:path*",
+      destination: `${origins.jeopardyOrigin}/jeopardy/:path*`,
     },
   ];
 }
