@@ -80,7 +80,6 @@ export function BuzzerClient() {
   const [highlight, setHighlight] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
-  const autoJoinAttemptedRef = useRef(false);
 
   const resolvedWsUrl = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -213,14 +212,6 @@ export function BuzzerClient() {
     };
   }, [disconnect, displayName, resolvedWsUrl, room, wsHost, wsPort]);
 
-  useEffect(() => {
-    if (!fullInvite || autoJoinAttemptedRef.current || connected) return;
-    if (!room.trim() || !resolvedWsUrl.startsWith("ws")) return;
-    if (!displayName.trim()) return;
-    autoJoinAttemptedRef.current = true;
-    queueMicrotask(() => connect());
-  }, [fullInvite, connected, room, resolvedWsUrl, displayName, connect]);
-
   useEffect(() => () => disconnect(), [disconnect]);
 
   const buzz = () => {
@@ -285,8 +276,8 @@ export function BuzzerClient() {
         </h1>
         <p className="text-sm text-[var(--muted)]">
           {fullInvite
-            ? "You are using the host invite. Add your name, then Join."
-            : "Same Wi-Fi as the host. Set the server below (or open the full invite link), then Join."}
+            ? "You are using the host invite. Enter your name, then tap Ready when you are set."
+            : "Same Wi-Fi as the host. Set the server below (or open the full invite link), then tap Ready."}
         </p>
         <Link
           href={hostHref}
@@ -382,15 +373,15 @@ export function BuzzerClient() {
 
       <button
         type="button"
-        disabled={!canConnect || connected}
+        disabled={!canConnect}
         onClick={connect}
         className="w-full rounded-lg bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-[var(--accent-foreground)] disabled:opacity-40"
       >
-        Join
+        Ready
       </button>
       {!displayName.trim() ? (
         <p className="text-center text-xs text-[var(--muted)]">
-          Enter a name to enable Join.
+          Enter a name to enable Ready.
         </p>
       ) : null}
 
@@ -415,7 +406,7 @@ export function BuzzerClient() {
       </p>
 
       <p className="pb-8 text-center text-xs text-[var(--muted)]">
-        Connect after the host starts the game.
+        Tap Ready only when you want to connect to the host.
       </p>
     </div>
   );
