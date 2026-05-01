@@ -2,9 +2,6 @@ import { Suspense } from "react";
 import { BuzzerClient } from "./BuzzerClient";
 
 export default function BuzzerPage() {
-  // #region agent log
-  fetch('http://127.0.0.1:7622/ingest/1302b181-d6d7-4b6e-bbe5-61c8fc200112',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4a45cf'},body:JSON.stringify({sessionId:'4a45cf',runId:'run6',hypothesisId:'H9',location:'app/buzzer/page.tsx:render',message:'Buzzer page server render executed',data:{route:'/buzzer'},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
   return (
     <Suspense
       fallback={

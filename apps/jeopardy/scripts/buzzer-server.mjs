@@ -112,35 +112,23 @@ wss.on("error", (err) => {
 
 wss.on("listening", () => {
   const lanIp = detectLanIpv4();
-  const inviteLink = lanIp
-    ? `http://${lanIp}:${HOST_APP_PORT}${BASE_PATH}/buzzer`
-    : null;
   console.log(
     `Jeopardy buzzer WebSocket server listening on ws://0.0.0.0:${PORT}`,
   );
-  if (inviteLink) {
-    console.log(`Share this link with the contestants: ${inviteLink}`);
-    console.log(`Open host screen: http://${lanIp}:${HOST_APP_PORT}${BASE_PATH}/host`);
-    console.log(
-      `Room-ready invite template: ${inviteLink}?room=<ROOMCODE>&host=${lanIp}&port=${PORT}`,
-    );
-  } else {
-    console.log(
-      `Share this link with the contestants: http://<your-lan-ip>:${HOST_APP_PORT}${BASE_PATH}/buzzer`,
-    );
-    console.log(
-      `Open host screen: http://<your-lan-ip>:${HOST_APP_PORT}${BASE_PATH}/host`,
-    );
-    console.log(
-      `Room-ready invite template: http://<your-lan-ip>:${HOST_APP_PORT}${BASE_PATH}/buzzer?room=<ROOMCODE>&host=<your-lan-ip>&port=${PORT}`,
-    );
-    console.log(
-      "Could not detect LAN IP automatically. Use your Wi-Fi IP from ipconfig.",
-    );
-  }
+  const hostForLinks = lanIp ?? "<your-lan-ip>";
+  const hostUrl = `http://${hostForLinks}:${HOST_APP_PORT}${BASE_PATH}/host`;
+  const playerUrl = `http://${hostForLinks}:${HOST_APP_PORT}${BASE_PATH}/buzzer`;
+  console.log(`Host URL: ${hostUrl}`);
+  console.log(`Player URL: ${playerUrl}`);
   console.log(
-    "Contestants join with this link, then enter the room code shown on the host screen.",
+    `Invite template: ${playerUrl}?room=<ROOMCODE>&host=${hostForLinks}&port=${PORT}`,
   );
+  console.log(
+    "Usage: open Host URL on the game machine, then share Player URL or Invite template with players.",
+  );
+  if (!lanIp) {
+    console.log("LAN IP not detected automatically. Replace <your-lan-ip> using ipconfig.");
+  }
 });
 
 wss.on("connection", (ws) => {
@@ -169,18 +157,12 @@ wss.on("connection", (ws) => {
             ? "buzzer"
             : "";
       if (!roomId || !role) {
-        // #region agent log
-        fetch('http://127.0.0.1:7622/ingest/1302b181-d6d7-4b6e-bbe5-61c8fc200112',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4a45cf'},body:JSON.stringify({sessionId:'4a45cf',runId:'run1',hypothesisId:'H4',location:'buzzer-server.mjs:hello-invalid',message:'Rejected hello missing room or role',data:{room:msg.room,role:msg.role},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         safeSend(ws, { type: "error", message: "hello requires room and role" });
         ws.close();
         return;
       }
 
       const room = getRoom(roomId);
-      // #region agent log
-      fetch('http://127.0.0.1:7622/ingest/1302b181-d6d7-4b6e-bbe5-61c8fc200112',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4a45cf'},body:JSON.stringify({sessionId:'4a45cf',runId:'run1',hypothesisId:'H2',location:'buzzer-server.mjs:hello-accepted',message:'Accepted hello',data:{roomId,role,buzzerCount:room.buzzers.size,hasHost:Boolean(room.host)},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
 
       if (role === "host") {
         if (room.host && room.host !== ws) {

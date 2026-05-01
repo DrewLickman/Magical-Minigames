@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { defaultPlayerProfile, readPlayerProfile } from "@minigames/shared";
+import { readPlayerProfile } from "@minigames/shared";
 import {
   effectiveBuzzerWsUrl,
   getEnvBuzzerWsOverride,
@@ -105,10 +105,7 @@ export function BuzzerClient() {
   useEffect(() => {
     queueMicrotask(() => {
       const profile = readPlayerProfile();
-      const initial =
-        profile?.displayName?.trim() ||
-        defaultPlayerProfile().displayName.trim() ||
-        "Player";
+      const initial = profile?.displayName?.trim() ?? "";
       setDisplayName(initial);
 
       const remembered = loadRemembered();
@@ -136,12 +133,6 @@ export function BuzzerClient() {
     displayName.trim().length > 0 &&
     resolvedWsUrl.trim().startsWith("ws");
 
-  useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7622/ingest/1302b181-d6d7-4b6e-bbe5-61c8fc200112',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4a45cf'},body:JSON.stringify({sessionId:'4a45cf',runId:'run2',hypothesisId:'H5',location:'BuzzerClient.tsx:canConnect-state',message:'Join eligibility state',data:{roomRaw:room,roomNormalized:normalizeRoomCode(room),displayNamePresent:Boolean(displayName.trim()),resolvedWsUrl,canConnect,fullInvite,wsHost,wsPort},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-  }, [room, displayName, resolvedWsUrl, canConnect, fullInvite, wsHost, wsPort]);
-
   const disconnect = useCallback(() => {
     try {
       wsRef.current?.close();
@@ -158,9 +149,6 @@ export function BuzzerClient() {
     disconnect();
     const r = normalizeRoomCode(room);
     const url = resolvedWsUrl;
-    // #region agent log
-    fetch('http://127.0.0.1:7622/ingest/1302b181-d6d7-4b6e-bbe5-61c8fc200112',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4a45cf'},body:JSON.stringify({sessionId:'4a45cf',runId:'run1',hypothesisId:'H1',location:'BuzzerClient.tsx:connect(start)',message:'Buzzer connect attempt',data:{roomRaw:room,roomNormalized:r,url,displayNamePresent:Boolean(displayName.trim())},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     if (!r || !url.startsWith("ws")) return;
 
     const ws = new WebSocket(url);
@@ -168,9 +156,6 @@ export function BuzzerClient() {
 
     ws.onopen = () => {
       setConnected(true);
-      // #region agent log
-      fetch('http://127.0.0.1:7622/ingest/1302b181-d6d7-4b6e-bbe5-61c8fc200112',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4a45cf'},body:JSON.stringify({sessionId:'4a45cf',runId:'run1',hypothesisId:'H3',location:'BuzzerClient.tsx:ws.onopen',message:'Buzzer socket opened',data:{room:r,url},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       if (!getEnvBuzzerWsOverride()) {
         saveRemembered({
           wsHost: wsHost.trim() || window.location.hostname,
@@ -183,7 +168,7 @@ export function BuzzerClient() {
           type: "hello",
           role: "buzzer",
           room: r,
-          name: displayName.trim() || "Player",
+          name: displayName.trim(),
           ...(pid ? { playerId: pid } : {}),
         }),
       );
@@ -207,9 +192,6 @@ export function BuzzerClient() {
       }
 
       if (msg.type === "helloAck") {
-        // #region agent log
-        fetch('http://127.0.0.1:7622/ingest/1302b181-d6d7-4b6e-bbe5-61c8fc200112',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4a45cf'},body:JSON.stringify({sessionId:'4a45cf',runId:'run1',hypothesisId:'H4',location:'BuzzerClient.tsx:ws.onmessage(helloAck)',message:'Buzzer hello acknowledged',data:{room:r,playerId:typeof msg.playerId==='string'?msg.playerId:'(none)'},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         const pid = msg.playerId;
         if (typeof pid === "string" && pid) {
           setPlayerId(pid);
@@ -271,7 +253,7 @@ export function BuzzerClient() {
       <div className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-3 px-4 py-4">
         <div className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
           <p className="truncate text-sm font-medium text-[var(--foreground)]">
-            {displayName.trim() || "Player"}
+            {displayName.trim()}
           </p>
           <p className="font-mono text-sm font-semibold text-[var(--foreground)]">
             ${score}
@@ -342,6 +324,7 @@ export function BuzzerClient() {
         <input
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
+          placeholder="Name"
           className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[var(--foreground)] outline-none ring-[var(--accent)] focus:ring-2"
           autoComplete="nickname"
         />
@@ -405,14 +388,6 @@ export function BuzzerClient() {
       >
         Join
       </button>
-      {!canConnect ? (
-        // #region agent log
-        (() => {
-          fetch('http://127.0.0.1:7622/ingest/1302b181-d6d7-4b6e-bbe5-61c8fc200112',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4a45cf'},body:JSON.stringify({sessionId:'4a45cf',runId:'run3',hypothesisId:'H5',location:'BuzzerClient.tsx:join-disabled-render',message:'Join rendered disabled',data:{roomRaw:room,roomNormalized:normalizeRoomCode(room),displayName,displayNamePresent:Boolean(displayName.trim()),resolvedWsUrl,connected,canConnect},timestamp:Date.now()})}).catch(()=>{});
-          return null;
-        })()
-        // #endregion
-      ) : null}
       {!displayName.trim() ? (
         <p className="text-center text-xs text-[var(--muted)]">
           Enter a name to enable Join.

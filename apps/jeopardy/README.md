@@ -2,20 +2,20 @@
 
 Host loads a JSON board, runs the clue flow on a projector, and optionally collects buzzes over the LAN.
 
-## Party night (three steps)
+## Party night (four steps)
 
 1. From the **monorepo root**: `npm run dev:jeopardy:party` — starts the game UI and the buzzer WebSocket server together.
-2. Open the **host** page (`http://192.168.1.50:3003/jeopardy/host` or via hub), then use **Copy contestant invite (room included)**. This link includes room + host + port so contestants usually do not type a room code.
-3. Optional fallback: use the terminal line **`Share this link with the contestants: ...`** and then provide the room code shown in host lobby.
-4. If you open host on Vercel/prod URL, the host UI now shows a compact banner with local-run steps and a copyable local host URL template.
+2. Open the **host** page (`http://192.168.1.50:3003/jeopardy/host` or via hub).
+3. Use **Copy contestant invite (room included)** in the host lobby and share that link with players.
+4. If host opens on a Vercel/prod URL, the UI shows a compact local-run banner with a copyable local host URL template.
 
 Direct host URL (Jeopardy app only): [http://localhost:3003/jeopardy/host](http://localhost:3003/jeopardy/host)
 
 ## Troubleshooting
 
-- **Port already in use (`EADDRINUSE`)**: another process is using the buzzer port (default **8787**). Stop the old process or run with a different port, e.g. PowerShell: `$env:JEOPARDY_BUZZER_PORT=8788` before `npm run buzzer-server`, then set the same port under **Advanced** on the host and use the terminal-provided contestant link.
-- **Override WebSocket URL**: set `NEXT_PUBLIC_JEOPARDY_BUZZER_WS_URL` (documented in env sections of the hub / deploy runbooks). Host **Advanced** explains when this is active.
-- **Start game is disabled**: import a board JSON first (template at `public/jeopardy-template.json`). The lobby shows this reason inline when Start is disabled.
+- **Port already in use (`EADDRINUSE`)**: another process is using the buzzer port (default **8787**). Stop the old process or run with a different port, e.g. PowerShell: `$env:JEOPARDY_BUZZER_PORT=8788` before `npm run buzzer-server`.
+- **Override WebSocket URL**: set `NEXT_PUBLIC_JEOPARDY_BUZZER_WS_URL` (documented in env sections of the hub / deploy runbooks). Host and buzzer clients both use it when present.
+- **Start game is disabled**: the app attempts to load `public/jeopardy-template.json` by default. If template loading fails, import a board JSON manually.
 
 ## Local development (UI only)
 
