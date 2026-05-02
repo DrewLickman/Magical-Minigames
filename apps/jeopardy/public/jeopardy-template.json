@@ -1,52 +1,52 @@
 {
   "Science": {
-    "100": {
+    "200": {
       "question": "This planet is known as the Red Planet.",
       "answer": "What is Mars?"
     },
-    "200": {
+    "400": {
       "question": "Water freezes at 0 degrees on this temperature scale.",
       "answer": "What is Celsius?"
     },
-    "300": {
+    "600": {
       "question": "The speed of light in vacuum is approximately 300,000 km per this unit of time.",
       "answer": "What is one second?"
     },
-    "400": {
+    "800": {
       "question": "DNA stands for this.",
       "answer": "What is deoxyribonucleic acid?"
     },
-    "500": {
+    "1000": {
       "question": "He published On the Origin of Species in 1859.",
       "answer": "Who is Charles Darwin?"
     }
   },
   "Geography": {
-    "100": { "question": "This is the largest ocean on Earth.", "answer": "What is the Pacific Ocean?" },
-    "200": { "question": "Cairo is the capital of this country.", "answer": "What is Egypt?" },
-    "300": { "question": "This river runs through Paris.", "answer": "What is the Seine?" },
-    "400": { "question": "The Great Barrier Reef lies off the coast of this country.", "answer": "What is Australia?" },
-    "500": { "question": "Mount Kilimanjaro is located on this continent.", "answer": "What is Africa?" }
+    "200": { "question": "This is the largest ocean on Earth.", "answer": "What is the Pacific Ocean?" },
+    "400": { "question": "Cairo is the capital of this country.", "answer": "What is Egypt?" },
+    "600": { "question": "This river runs through Paris.", "answer": "What is the Seine?" },
+    "800": { "question": "The Great Barrier Reef lies off the coast of this country.", "answer": "What is Australia?" },
+    "1000": { "question": "Mount Kilimanjaro is located on this continent.", "answer": "What is Africa?" }
   },
   "Movies & TV": {
-    "100": { "question": "This wizarding hero has a lightning-shaped scar.", "answer": "Who is Harry Potter?" },
-    "200": { "question": "In Toy Story, this cowboy is Andy's favorite toy.", "answer": "Who is Woody?" },
-    "300": { "question": "The long-running animated family on Fox is this one.", "answer": "Who are the Simpsons?" },
-    "400": { "question": "This 1997 film about a doomed ship stars Leonardo DiCaprio and Kate Winslet.", "answer": "What is Titanic?" },
-    "500": { "question": "In Star Wars, this villain says, 'I am your father.'", "answer": "Who is Darth Vader?" }
+    "200": { "question": "This wizarding hero has a lightning-shaped scar.", "answer": "Who is Harry Potter?" },
+    "400": { "question": "In Toy Story, this cowboy is Andy's favorite toy.", "answer": "Who is Woody?" },
+    "600": { "question": "The long-running animated family on Fox is this one.", "answer": "Who are the Simpsons?" },
+    "800": { "question": "This 1997 film about a doomed ship stars Leonardo DiCaprio and Kate Winslet.", "answer": "What is Titanic?" },
+    "1000": { "question": "In Star Wars, this villain says, 'I am your father.'", "answer": "Who is Darth Vader?" }
   },
   "History": {
-    "100": { "question": "The United States celebrates Independence Day on this date in July.", "answer": "What is July 4th?" },
-    "200": { "question": "She was the first woman to fly solo across the Atlantic Ocean.", "answer": "Who is Amelia Earhart?" },
-    "300": { "question": "This wall in Germany fell in 1989, symbolizing the end of the Cold War era.", "answer": "What is the Berlin Wall?" },
-    "400": { "question": "This ancient civilization built Machu Picchu.", "answer": "Who were the Inca?" },
-    "500": { "question": "The Magna Carta was signed in this country in 1215.", "answer": "What is England?" }
+    "200": { "question": "The United States celebrates Independence Day on this date in July.", "answer": "What is July 4th?" },
+    "400": { "question": "She was the first woman to fly solo across the Atlantic Ocean.", "answer": "Who is Amelia Earhart?" },
+    "600": { "question": "This wall in Germany fell in 1989, symbolizing the end of the Cold War era.", "answer": "What is the Berlin Wall?" },
+    "800": { "question": "This ancient civilization built Machu Picchu.", "answer": "Who were the Inca?" },
+    "1000": { "question": "The Magna Carta was signed in this country in 1215.", "answer": "What is England?" }
   },
   "Wordplay": {
-    "100": { "question": "A word with the opposite meaning of 'hot.'", "answer": "What is cold?" },
-    "200": { "question": "This punctuation mark ends most questions.", "answer": "What is a question mark?" },
-    "300": { "question": "A word made from the first letters of a phrase, like NASA, is called this.", "answer": "What is an acronym?" },
-    "400": { "question": "A phrase like 'break a leg' that does not mean exactly what it says is this.", "answer": "What is an idiom?" },
-    "500": { "question": "A palindrome reads the same forward and backward, like this 3-letter word for a place to live.", "answer": "What is 'mom'?" }
+    "200": { "question": "A word with the opposite meaning of 'hot.'", "answer": "What is cold?" },
+    "400": { "question": "This punctuation mark ends most questions.", "answer": "What is a question mark?" },
+    "600": { "question": "A word made from the first letters of a phrase, like NASA, is called this.", "answer": "What is an acronym?" },
+    "800": { "question": "A phrase like 'break a leg' that does not mean exactly what it says is this.", "answer": "What is an idiom?" },
+    "1000": { "question": "A palindrome reads the same forward and backward, like this 3-letter word for a place to live.", "answer": "What is 'mom'?" }
   }
 }

@@ -5,7 +5,9 @@ export default function BuzzerPage() {
   return (
     <Suspense
       fallback={
-        <p className="p-8 text-center text-[var(--muted)]">Loading buzzer…</p>
+        <div className="flex flex-1 items-center justify-center px-4 text-center text-sm text-[var(--muted)]">
+          Loading buzzer…
+        </div>
       }
     >
       <BuzzerClient />

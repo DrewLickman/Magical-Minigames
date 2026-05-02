@@ -16,6 +16,8 @@ const allowedDevOrigins = (
 const nextConfig: NextConfig = {
   basePath: basePath || undefined,
   allowedDevOrigins,
+  /** Hides the dev-mode route indicator (bottom-left) on buzzer/host during local play */
+  devIndicators: false,
   transpilePackages: ["@minigames/shared"],
   turbopack: {
     root: monorepoRoot,

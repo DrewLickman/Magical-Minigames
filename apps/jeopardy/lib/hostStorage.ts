@@ -14,6 +14,10 @@ export type Contestant = {
   id: string;
   name: string;
   score: number;
+  /** Buzzer WebSocket player id when joined from buzzer roster */
+  buzzerId?: string;
+  /** Raw PNG base64 (no data URL prefix); not persisted to localStorage */
+  signatureImage?: string;
 };
 
 export type PersistedHostState = {
@@ -41,6 +45,7 @@ export function loadPersistedHostState(): PersistedHostState | null {
         id: typeof row.id === "string" ? row.id : createId(),
         name: typeof row.name === "string" ? row.name : "",
         score: typeof row.score === "number" && Number.isFinite(row.score) ? row.score : 0,
+        buzzerId: typeof row.buzzerId === "string" ? row.buzzerId : undefined,
       };
     });
     return {
@@ -154,13 +159,13 @@ export function boardToImportJson(board: BoardModel): string {
     string,
     Record<string, { question: string; answer: string }>
   > = {};
-  const points = ["100", "200", "300", "400", "500"] as const;
   for (let col = 0; col < board.categories.length; col++) {
     const cat = board.categories[col];
     const colObj: Record<string, { question: string; answer: string }> = {};
     for (let row = 0; row < 5; row++) {
       const clue = board.clues[col][row];
-      colObj[points[row]] = {
+      const key = String(board.pointValues[row]);
+      colObj[key] = {
         question: clue.question,
         answer: clue.answer,
       };

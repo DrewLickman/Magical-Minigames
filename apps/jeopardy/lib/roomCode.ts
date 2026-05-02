@@ -1,15 +1,75 @@
-const ROOM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-const DEFAULT_ROOM_CODE_LENGTH = 6;
+const FOOD_ROOM_CODE_WORDS = [
+  "steak",
+  "fries",
+  "chips",
+  "nacho",
+  "taco",
+  "salsa",
+  "curry",
+  "ramen",
+  "pizza",
+  "pesto",
+  "gravy",
+  "broth",
+  "beans",
+  "peas",
+  "corn",
+  "kale",
+  "basil",
+  "apple",
+  "grape",
+  "mango",
+  "lemon",
+  "melon",
+  "onion",
+  "olive",
+  "chili",
+  "bread",
+  "pasta",
+  "bacon",
+  "peach",
+  "guava",
+  "berry",
+  "cocoa",
+  "latte",
+  "mocha",
+  "cider",
+  "syrup",
+  "honey",
+  "sugar",
+  "flour",
+  "wheat",
+  "cream",
+  "banana",
+  "orange",
+  "cherry",
+  "carrot",
+  "potato",
+  "tomato",
+  "celery",
+  "garlic",
+  "shrimp",
+  "yogurt",
+  "almond",
+  "cashew",
+  "walnut",
+  "pecans",
+  "raisin",
+  "papaya",
+  "lychee",
+  "durian",
+  "cheese",
+  "butter",
+  "pickle",
+  "hummus",
+] as const;
 
 export function normalizeRoomCode(raw: string): string {
   const upper = raw.toUpperCase();
-  return [...upper].filter((ch) => ROOM_CODE_ALPHABET.includes(ch)).join("");
+  return [...upper].filter((ch) => ch >= "A" && ch <= "Z").join("");
 }
 
-export function randomRoomCode(length = DEFAULT_ROOM_CODE_LENGTH): string {
-  let out = "";
-  for (let i = 0; i < length; i++) {
-    out += ROOM_CODE_ALPHABET[Math.floor(Math.random() * ROOM_CODE_ALPHABET.length)];
-  }
-  return out;
+export function randomRoomCode(): string {
+  const idx = Math.floor(Math.random() * FOOD_ROOM_CODE_WORDS.length);
+  return normalizeRoomCode(FOOD_ROOM_CODE_WORDS[idx]);
 }

@@ -38,10 +38,63 @@ function detectLanIpv4() {
   return privateCandidate ?? candidates[0] ?? null;
 }
 
-/** @typedef {{ host?: import('ws').WebSocket, unlocked: boolean, firstBuzz: null | { id: string, name: string, at: number }, buzzers: Map<string, import('ws').WebSocket>, names: Map<string, string>, buzzQueue: Array<{ id: string, name: string, at: number }> }} Room */
+/** Max base64 length (~150KB PNG) for signaturePngBase64 */
+const MAX_SIGNATURE_B64_CHARS = 200_000;
+
+/**
+ * @typedef {{
+ *   host?: import('ws').WebSocket,
+ *   unlocked: boolean,
+ *   firstBuzz: null | { id: string, name: string, at: number },
+ *   buzzers: Map<string, import('ws').WebSocket>,
+ *   names: Map<string, string>,
+ *   signatures: Map<string, string>,
+ *   buzzQueue: Array<{ id: string, name: string, at: number }>,
+ *   fjPhase: "off" | "wager" | "answer" | "closed",
+ *   fjCategory: string,
+ *   fjQuestion: string,
+ *   fjAnswerEndsAt: number,
+ *   fjMaxWagerByPlayer: Map<string, number>,
+ *   fjWagers: Map<string, number>,
+ *   fjAnswers: Map<string, string>,
+ * }} Room
+ */
+
+/**
+ * @param {unknown} raw
+ * @returns {string | null}
+ */
+function normalizeSignaturePngBase64(raw) {
+  if (typeof raw !== "string") return null;
+  const s = raw.trim().replace(/\s+/g, "");
+  if (!s || s.length > MAX_SIGNATURE_B64_CHARS) return null;
+  if (!/^[A-Za-z0-9+/]+=*$/.test(s)) return null;
+  return s;
+}
 
 /** @type {Map<string, Room>} */
 const rooms = new Map();
+
+function createFjFields() {
+  return {
+    fjPhase: /** @type {Room["fjPhase"]} */ ("off"),
+    fjCategory: "",
+    fjQuestion: "",
+    fjAnswerEndsAt: 0,
+    fjMaxWagerByPlayer: new Map(),
+    fjWagers: new Map(),
+    fjAnswers: new Map(),
+  };
+}
+
+/**
+ * @param {Room} r
+ */
+function ensureFjFields(r) {
+  if (!("fjPhase" in r)) {
+    Object.assign(r, createFjFields());
+  }
+}
 
 function getRoom(roomId) {
   let r = rooms.get(roomId);
@@ -52,11 +105,36 @@ function getRoom(roomId) {
       firstBuzz: null,
       buzzers: new Map(),
       names: new Map(),
+      signatures: new Map(),
       buzzQueue: [],
+      ...createFjFields(),
     };
     rooms.set(roomId, r);
+  } else {
+    ensureFjFields(r);
   }
   return r;
+}
+
+/**
+ * @param {Room} room
+ */
+function sendFjStateToBuzzer(room, buzzerId, ws) {
+  if (room.fjPhase === "wager") {
+    safeSend(ws, {
+      type: "finalJeopardyWagerPrompt",
+      category: room.fjCategory,
+      maxWager: room.fjMaxWagerByPlayer.get(buzzerId) ?? 0,
+    });
+  } else if (room.fjPhase === "answer") {
+    safeSend(ws, {
+      type: "finalJeopardyQuestion",
+      question: room.fjQuestion,
+      answerEndsAt: room.fjAnswerEndsAt,
+    });
+  } else if (room.fjPhase === "closed") {
+    safeSend(ws, { type: "finalJeopardyAnswerPhaseEnded" });
+  }
 }
 
 function safeSend(ws, obj) {
@@ -79,6 +157,7 @@ function announceHostState(room) {
     connectedBuzzers: Array.from(room.names.entries()).map(([id, name]) => ({
       id,
       name,
+      signatureImage: room.signatures.get(id) ?? undefined,
     })),
   });
 }
@@ -187,8 +266,22 @@ wss.on("connection", (ws) => {
           ? msg.name.trim().slice(0, 48) || "Player"
           : "Player";
 
+      const signaturePng = normalizeSignaturePngBase64(
+        msg.signaturePngBase64,
+      );
+      if (!signaturePng) {
+        safeSend(ws, {
+          type: "error",
+          message:
+            "hello requires valid signaturePngBase64 (PNG base64, size limit applies)",
+        });
+        ws.close();
+        return;
+      }
+
       room.buzzers.set(buzzerId, ws);
       room.names.set(buzzerId, displayName);
+      room.signatures.set(buzzerId, signaturePng);
       announceHostState(room);
 
       safeSend(ws, {
@@ -201,6 +294,7 @@ wss.on("connection", (ws) => {
         type: "state",
         unlocked: room.unlocked,
       });
+      sendFjStateToBuzzer(room, buzzerId, ws);
       return;
     }
 
@@ -224,7 +318,101 @@ wss.on("connection", (ws) => {
         room.buzzQueue = [];
         broadcastBuzzers(room, { type: "roundLocked" });
         announceHostState(room);
+      } else if (msg.type === "pushScores") {
+        const raw = msg.scores;
+        if (!raw || typeof raw !== "object") return;
+        for (const [buzzerKey, wsClient] of room.buzzers) {
+          const v = raw[buzzerKey];
+          const score =
+            typeof v === "number" && Number.isFinite(v) ? Math.trunc(v) : null;
+          if (score !== null) {
+            safeSend(wsClient, { type: "yourScore", score });
+          }
+        }
+      } else if (msg.type === "finalJeopardyStart") {
+        const category =
+          typeof msg.category === "string" ? msg.category.trim() : "";
+        const rawMax = msg.maxWagers;
+        if (!category || !rawMax || typeof rawMax !== "object") return;
+        room.fjWagers.clear();
+        room.fjAnswers.clear();
+        room.fjMaxWagerByPlayer.clear();
+        for (const [k, v] of Object.entries(rawMax)) {
+          if (typeof k !== "string" || !k.trim()) continue;
+          const n =
+            typeof v === "number" && Number.isFinite(v) ? Math.max(0, Math.trunc(v)) : 0;
+          room.fjMaxWagerByPlayer.set(k.trim(), n);
+        }
+        room.fjCategory = category;
+        room.fjQuestion = "";
+        room.fjAnswerEndsAt = 0;
+        room.fjPhase = "wager";
+        for (const [bid, wsClient] of room.buzzers) {
+          safeSend(wsClient, {
+            type: "finalJeopardyWagerPrompt",
+            category: room.fjCategory,
+            maxWager: room.fjMaxWagerByPlayer.get(bid) ?? 0,
+          });
+        }
+      } else if (msg.type === "finalJeopardyRevealQuestion") {
+        const question =
+          typeof msg.question === "string" ? msg.question.trim() : "";
+        const answerEndsAt =
+          typeof msg.answerEndsAt === "number" && Number.isFinite(msg.answerEndsAt)
+            ? Math.trunc(msg.answerEndsAt)
+            : 0;
+        if (!question || answerEndsAt <= 0) return;
+        room.fjQuestion = question;
+        room.fjAnswerEndsAt = answerEndsAt;
+        room.fjPhase = "answer";
+        broadcastBuzzers(room, {
+          type: "finalJeopardyQuestion",
+          question: room.fjQuestion,
+          answerEndsAt: room.fjAnswerEndsAt,
+        });
+      } else if (msg.type === "finalJeopardyCloseAnswers") {
+        room.fjPhase = "closed";
+        const wagers = Object.fromEntries(room.fjWagers);
+        const answers = Object.fromEntries(room.fjAnswers);
+        if (room.host) {
+          safeSend(room.host, {
+            type: "finalJeopardyGradingBundle",
+            wagers,
+            answers,
+          });
+        }
+        broadcastBuzzers(room, { type: "finalJeopardyAnswerPhaseEnded" });
       }
+      return;
+    }
+
+    if (role === "buzzer" && msg.type === "finalJeopardyWager") {
+      if (room.fjPhase !== "wager") return;
+      const w =
+        typeof msg.wager === "number" && Number.isFinite(msg.wager)
+          ? Math.trunc(msg.wager)
+          : NaN;
+      if (!Number.isFinite(w)) return;
+      const cap = room.fjMaxWagerByPlayer.get(buzzerId);
+      if (cap === undefined) return;
+      const wager = Math.min(Math.max(0, w), cap);
+      room.fjWagers.set(buzzerId, wager);
+      const name = room.names.get(buzzerId) ?? "Player";
+      if (room.host) {
+        safeSend(room.host, {
+          type: "finalJeopardyWagerPlaced",
+          playerId: buzzerId,
+          name,
+        });
+      }
+      return;
+    }
+
+    if (role === "buzzer" && msg.type === "finalJeopardyAnswer") {
+      if (room.fjPhase !== "answer") return;
+      const text =
+        typeof msg.text === "string" ? msg.text.trim().slice(0, 4000) : "";
+      room.fjAnswers.set(buzzerId, text);
       return;
     }
 
@@ -273,10 +461,19 @@ wss.on("connection", (ws) => {
     if (!room) return;
     if (role === "host" && room.host === ws) {
       room.host = undefined;
+      ensureFjFields(room);
+      room.fjPhase = "off";
+      room.fjWagers.clear();
+      room.fjAnswers.clear();
+      room.fjMaxWagerByPlayer.clear();
+      room.fjCategory = "";
+      room.fjQuestion = "";
+      room.fjAnswerEndsAt = 0;
     }
     if (role === "buzzer" && buzzerId) {
       room.buzzers.delete(buzzerId);
       room.names.delete(buzzerId);
+      room.signatures.delete(buzzerId);
       announceHostState(room);
     }
   });
