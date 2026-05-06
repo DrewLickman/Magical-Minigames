@@ -631,10 +631,6 @@ export function HostGameClient({
           typeof msg.row === "number" && Number.isFinite(msg.row)
             ? Math.trunc(msg.row)
             : -1;
-        const multRaw =
-          typeof msg.multiplier === "number" && Number.isFinite(msg.multiplier)
-            ? Math.max(1, Math.trunc(msg.multiplier))
-            : 2;
         if ((roundRaw === 1 || roundRaw === 2) && colRaw >= 0 && rowRaw >= 0) {
           setDailyDoubleCell({
             round: roundRaw,
@@ -642,8 +638,8 @@ export function HostGameClient({
             row: rowRaw,
           });
         }
-        setDdLockedBanner(`DAILY DOUBLE! This clue is worth ${multRaw}x points.`);
-        setClueTimerNotice("Daily Double active.");
+        setDdLockedBanner("DAILY DOUBLE");
+        setClueTimerNotice(null);
       }
       if (msg.type === "firstBuzz") {
         const name = typeof msg.name === "string" ? msg.name : "Player";
@@ -1643,7 +1639,7 @@ export function HostGameClient({
 
             <div className="pointer-events-none fixed inset-x-0 top-16 bottom-56 z-10 flex flex-col items-center justify-center px-6">
               <div
-                className={`pointer-events-none max-h-[70vh] w-full max-w-4xl overflow-auto rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-8 shadow-lg transition-transform duration-300 sm:p-12 ${
+                className={`pointer-events-none max-h-[70vh] w-full max-w-4xl overflow-auto rounded-2xl border border-[var(--accent)] bg-[var(--surface)] p-8 shadow-lg transition-transform duration-300 sm:p-12 ${
                   cluePhase === "question" ? "scale-100" : "scale-[1.02]"
                 }`}
               >
@@ -1655,28 +1651,15 @@ export function HostGameClient({
                     {clueTimerNotice}
                   </p>
                 ) : null}
-                {ddLockedBanner ? (
+                {ddLockedBanner && isSelectedDailyDouble ? (
                   <div
-                    className={`mb-3 rounded-xl border px-3 py-2 text-center shadow-sm ${
-                      isSelectedDailyDouble
-                        ? "border-[var(--accent)] bg-[var(--accent)]/15"
-                        : "border-[var(--border)] bg-[var(--surface)]"
-                    }`}
+                    className="mb-3 rounded-xl border border-[var(--accent)] bg-[var(--accent)]/15 px-3 py-4 text-center shadow-sm"
                   >
-                    <p
-                      className={`text-sm font-extrabold uppercase tracking-[0.12em] ${
-                        isSelectedDailyDouble
-                          ? "text-[var(--accent)]"
-                          : "text-[var(--foreground)]"
-                      }`}
-                    >
-                      {ddLockedBanner}
+                    <p className="text-3xl font-extrabold uppercase leading-none tracking-[0.18em] text-[var(--accent)] sm:text-5xl">
+                      DAILY
+                      <br />
+                      DOUBLE
                     </p>
-                    {isSelectedDailyDouble ? (
-                      <p className="mt-1 text-xs font-semibold text-[var(--foreground)]">
-                        Correct response awards double the clue value.
-                      </p>
-                    ) : null}
                   </div>
                 ) : null}
                 {cluePhase === "question" &&
