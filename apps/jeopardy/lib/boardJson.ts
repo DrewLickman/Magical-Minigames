@@ -26,8 +26,11 @@ export function parseBoardJsonText(text: string): BoardParseResult {
   let raw: unknown;
   try {
     raw = JSON.parse(text) as unknown;
-  } catch {
-    return { ok: false, error: "Invalid JSON." };
+  } catch (e) {
+    if (e instanceof SyntaxError && e.message) {
+      return { ok: false, error: `Invalid JSON: ${e.message}` };
+    }
+    return { ok: false, error: "Invalid JSON: parse failed." };
   }
 
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {

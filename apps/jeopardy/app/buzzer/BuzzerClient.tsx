@@ -95,6 +95,23 @@ export function BuzzerClient() {
   const [fjSecondsLeft, setFjSecondsLeft] = useState<number | null>(null);
   const fjAutoSubmitDoneRef = useRef(false);
 
+  /** "off" | "input" | "sent" — Daily Double wager prompt from host */
+  const [ddWagerPhase, setDdWagerPhase] = useState<"off" | "input" | "sent">(
+    "off",
+  );
+  const [ddMaxWager, setDdMaxWager] = useState(0);
+  const [ddMinWager, setDdMinWager] = useState(0);
+  const [ddClueValue, setDdClueValue] = useState(0);
+  const [ddWagerDraft, setDdWagerDraft] = useState("");
+  const [ddWagerConfirm, setDdWagerConfirm] = useState(false);
+
+  const [clueEndsAt, setClueEndsAt] = useState<number | null>(null);
+  const [cluePausedRemainingMs, setCluePausedRemainingMs] = useState<
+    number | null
+  >(null);
+  const [clueSecondsLeft, setClueSecondsLeft] = useState<number | null>(null);
+  const [buzzRejectHint, setBuzzRejectHint] = useState<string | null>(null);
+
   const wsRef = useRef<WebSocket | null>(null);
 
   const resolvedWsUrl = useMemo(() => {
@@ -172,6 +189,16 @@ export function BuzzerClient() {
     setFjPhaseEnded(false);
     setFjSecondsLeft(null);
     fjAutoSubmitDoneRef.current = false;
+    setDdWagerPhase("off");
+    setDdMaxWager(0);
+    setDdMinWager(0);
+    setDdClueValue(0);
+    setDdWagerDraft("");
+    setDdWagerConfirm(false);
+    setClueEndsAt(null);
+    setCluePausedRemainingMs(null);
+    setClueSecondsLeft(null);
+    setBuzzRejectHint(null);
   }, []);
 
   const connect = useCallback(() => {
@@ -218,6 +245,10 @@ export function BuzzerClient() {
 
     ws.onerror = () => {
       setConnected(false);
+      setConnectError((prev) =>
+        prev ??
+          "WebSocket failed to connect. Make sure the buzzer server is running (for example npm run dev:jeopardy:party) and the LAN IP/port match this device.",
+      );
     };
 
     ws.onmessage = (ev) => {
@@ -255,10 +286,83 @@ export function BuzzerClient() {
 
       if (msg.type === "roundLocked") {
         setRoundOpen(false);
+        setClueEndsAt(null);
+        setCluePausedRemainingMs(null);
       }
 
       if (msg.type === "state") {
         setRoundOpen(Boolean(msg.unlocked));
+        const pr =
+          typeof msg.clueTimerPauseRemainingMs === "number" &&
+          Number.isFinite(msg.clueTimerPauseRemainingMs)
+            ? Math.max(0, Math.trunc(msg.clueTimerPauseRemainingMs))
+            : 0;
+        setCluePausedRemainingMs(pr > 0 ? pr : null);
+        const ce =
+          typeof msg.clueTimerEndsAt === "number" &&
+          Number.isFinite(msg.clueTimerEndsAt)
+            ? Math.trunc(msg.clueTimerEndsAt)
+            : null;
+        setClueEndsAt(
+          pr > 0 ? null : ce !== null && ce > 0 ? ce : null,
+        );
+      }
+
+      if (msg.type === "clueTimer") {
+        const ends =
+          typeof msg.endsAt === "number" && Number.isFinite(msg.endsAt)
+            ? Math.trunc(msg.endsAt)
+            : null;
+        if (ends !== null && ends > 0) {
+          setClueEndsAt(ends);
+          setCluePausedRemainingMs(null);
+          setDdWagerPhase("off");
+        }
+      }
+
+      if (msg.type === "clueTimerPaused") {
+        const r =
+          typeof msg.remainingMs === "number" && Number.isFinite(msg.remainingMs)
+            ? Math.max(0, Math.trunc(msg.remainingMs))
+            : 0;
+        if (r > 0) {
+          setCluePausedRemainingMs(r);
+          setClueEndsAt(null);
+        }
+      }
+
+      if (msg.type === "reject") {
+        const reason =
+          typeof msg.reason === "string" && msg.reason.trim()
+            ? msg.reason.trim()
+            : "Buzz rejected.";
+        const hint =
+          reason === "locked"
+            ? "Round locked — buzzing is closed right now."
+            : reason;
+        setBuzzRejectHint(hint);
+        window.setTimeout(() => setBuzzRejectHint(null), 4000);
+      }
+
+      if (msg.type === "dailyDoubleWagerPrompt") {
+        const maxW =
+          typeof msg.maxWager === "number" && Number.isFinite(msg.maxWager)
+            ? Math.max(0, Math.trunc(msg.maxWager))
+            : 0;
+        const minW =
+          typeof msg.minWager === "number" && Number.isFinite(msg.minWager)
+            ? Math.max(0, Math.trunc(msg.minWager))
+            : 0;
+        const clueVal =
+          typeof msg.clueValue === "number" && Number.isFinite(msg.clueValue)
+            ? Math.max(0, Math.trunc(msg.clueValue))
+            : 0;
+        setDdMaxWager(maxW);
+        setDdMinWager(minW);
+        setDdClueValue(clueVal);
+        setDdWagerDraft("");
+        setDdWagerConfirm(false);
+        setDdWagerPhase("input");
       }
 
       if (msg.type === "yourScore") {
@@ -269,6 +373,7 @@ export function BuzzerClient() {
       }
 
       if (msg.type === "finalJeopardyWagerPrompt") {
+        setDdWagerPhase("off");
         const cat = typeof msg.category === "string" ? msg.category : "";
         const maxW =
           typeof msg.maxWager === "number" && Number.isFinite(msg.maxWager)
@@ -354,6 +459,40 @@ export function BuzzerClient() {
     fjAnswerSubmitted,
     fjPhaseEnded,
   ]);
+
+  useEffect(() => {
+    if (cluePausedRemainingMs != null && cluePausedRemainingMs > 0) {
+      setClueSecondsLeft(
+        Math.max(1, Math.ceil(cluePausedRemainingMs / 1000)),
+      );
+      return;
+    }
+    if (clueEndsAt == null) {
+      setClueSecondsLeft(null);
+      return;
+    }
+    const tick = () => {
+      const left = Math.max(
+        0,
+        Math.ceil((clueEndsAt - Date.now()) / 1000),
+      );
+      setClueSecondsLeft(left);
+    };
+    tick();
+    const id = window.setInterval(tick, 250);
+    return () => window.clearInterval(id);
+  }, [clueEndsAt, cluePausedRemainingMs]);
+
+  const submitDdWager = () => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN || !ddWagerConfirm) return;
+    const n = Number.parseInt(ddWagerDraft.trim(), 10);
+    const wager = Number.isFinite(n)
+      ? Math.min(Math.max(n, ddMinWager), ddMaxWager)
+      : ddMinWager;
+    ws.send(JSON.stringify({ type: "dailyDoubleWager", wager }));
+    setDdWagerPhase("sent");
+  };
 
   const submitFjWager = () => {
     const ws = wsRef.current;
@@ -523,6 +662,66 @@ export function BuzzerClient() {
       );
     }
 
+    if (ddWagerPhase !== "off") {
+      return (
+        <div className="mx-auto flex min-h-0 w-full max-w-md flex-1 flex-col gap-3 px-3 py-2">
+          <div className="flex shrink-0 items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
+            <p className="truncate text-sm font-medium text-[var(--foreground)]">
+              {displayName.trim()}
+            </p>
+            <p className="font-mono text-sm font-semibold text-[var(--foreground)]">
+              ${score}
+            </p>
+          </div>
+          <p className="text-center text-xs font-semibold uppercase tracking-wide text-[var(--accent)]">
+            Daily Double
+          </p>
+
+          {ddWagerPhase === "input" ? (
+            <div className="flex min-h-0 flex-1 flex-col gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+              <p className="text-center text-xs text-[var(--muted)]">
+                Clue value ${ddClueValue}. Enter your wager (whole dollars, $
+                {ddMinWager}–${ddMaxWager}).
+              </p>
+              <label className="block space-y-1">
+                <span className="text-xs text-[var(--muted)]">Wager</span>
+                <input
+                  type="number"
+                  min={ddMinWager}
+                  max={ddMaxWager}
+                  inputMode="numeric"
+                  value={ddWagerDraft}
+                  onChange={(e) => setDdWagerDraft(e.target.value)}
+                  className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 font-mono text-[var(--foreground)] outline-none ring-[var(--accent)] focus:ring-2"
+                />
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--foreground)]">
+                <input
+                  type="checkbox"
+                  checked={ddWagerConfirm}
+                  onChange={(e) => setDdWagerConfirm(e.target.checked)}
+                  className="h-4 w-4 shrink-0 accent-[var(--accent)]"
+                />
+                I confirm this wager.
+              </label>
+              <button
+                type="button"
+                disabled={!ddWagerConfirm}
+                onClick={submitDdWager}
+                className="rounded-lg bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-[var(--accent-foreground)] disabled:opacity-40"
+              >
+                Submit wager
+              </button>
+            </div>
+          ) : (
+            <p className="text-center text-sm text-[var(--muted)]">
+              Wager submitted. Waiting for the host…
+            </p>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div className="mx-auto flex min-h-0 w-full max-w-md flex-1 flex-col gap-2 px-3 py-2">
         <div className="flex shrink-0 items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
@@ -533,6 +732,20 @@ export function BuzzerClient() {
             ${score}
           </p>
         </div>
+        {clueSecondsLeft !== null && clueSecondsLeft > 0 ? (
+          <p
+            className={`text-center font-mono text-lg font-bold ${
+              clueSecondsLeft <= 10
+                ? "text-[var(--danger)]"
+                : "text-[var(--foreground)]"
+            }`}
+          >
+            Question timer · {clueSecondsLeft}s
+          </p>
+        ) : null}
+        {buzzRejectHint ? (
+          <p className="text-center text-xs text-[var(--danger)]">{buzzRejectHint}</p>
+        ) : null}
         <button
           type="button"
           disabled={!roundOpen}

@@ -22,6 +22,7 @@ import {
   type FinalJeopardyHostUiPhase,
 } from "./FinalJeopardyHostPanel";
 import { BoardJsonActionsPanel } from "./BoardJsonActionsPanel";
+import { HostHeaderMenu } from "./HostHeaderMenu";
 import { normalizeRoomCode, randomRoomCode } from "@/lib/roomCode";
 
 type CluePhase = "board" | "question" | "answer";
@@ -88,14 +89,12 @@ export function HostGameClient({
   const [buzzerPort, setBuzzerPort] = useState(8787);
   const [inviteCopied, setInviteCopied] = useState(false);
   const [buzzerConnected, setBuzzerConnected] = useState(false);
-  const [firstBuzz, setFirstBuzz] = useState<{
-    name: string;
-    playerId: string;
-    at: number;
-  } | null>(null);
   const [buzzQueue, setBuzzQueue] = useState<
     Array<{ name: string; playerId: string; at: number }>
   >([]);
+  const [dismissedBuzzPlayerIds, setDismissedBuzzPlayerIds] = useState<
+    Set<string>
+  >(() => new Set());
   const [connectedBuzzers, setConnectedBuzzers] = useState(0);
   const [connectedRoster, setConnectedRoster] = useState<BuzzerRosterEntry[]>(
     [],
@@ -105,7 +104,6 @@ export function HostGameClient({
   const [manualInviteUrl, setManualInviteUrl] = useState<string | null>(null);
   const manualInviteInputRef = useRef<HTMLInputElement | null>(null);
   const [awardPending, setAwardPending] = useState<AwardPendingState>(null);
-  const [buzzQueuePriorityIndex, setBuzzQueuePriorityIndex] = useState(0);
 
   const wsRef = useRef<WebSocket | null>(null);
   /** Prevents applying tile points twice for the same cell (e.g. Strict Mode / double updater runs). */
@@ -116,6 +114,24 @@ export function HostGameClient({
   /** When true, staged Round 2 JSON came from file import; do not overwrite from template fetch. */
   const roundTwoFromUserImportRef = useRef(false);
   const fjCloseAnswersSentRef = useRef(false);
+  const contestantsRef = useRef(contestants);
+  const scoreUndoStackRef = useRef<Contestant[][]>([]);
+  const scoreRedoStackRef = useRef<Contestant[][]>([]);
+  const [scoreHistoryEpoch, setScoreHistoryEpoch] = useState(0);
+  const [clueTimerEndsAt, setClueTimerEndsAt] = useState<number | null>(null);
+  const [cluePauseRemainingMs, setCluePauseRemainingMs] = useState<
+    number | null
+  >(null);
+  const [clueHostSecondsLeft, setClueHostSecondsLeft] = useState<number | null>(
+    null,
+  );
+  const [dailyDoubleCell, setDailyDoubleCell] = useState<{
+    round: 1 | 2;
+    col: number;
+    row: number;
+  } | null>(null);
+  const [clueTimerNotice, setClueTimerNotice] = useState<string | null>(null);
+  const [ddLockedBanner, setDdLockedBanner] = useState<string | null>(null);
 
   const [gamePhase, setGamePhase] = useState<"boards" | "finalJeopardy">(
     "boards",
@@ -148,9 +164,51 @@ export function HostGameClient({
   };
 
   useEffect(() => {
+    contestantsRef.current = contestants;
+  }, [contestants]);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
     setRuntimeHostname(window.location.hostname);
   }, []);
+
+  function pushScoreUndoSnapshot(prev: Contestant[]) {
+    scoreUndoStackRef.current.push(prev.map((c) => ({ ...c })));
+    scoreRedoStackRef.current = [];
+    if (scoreUndoStackRef.current.length > 50) {
+      scoreUndoStackRef.current.shift();
+    }
+    setScoreHistoryEpoch((e) => e + 1);
+  }
+
+  const undoScoreChange = useCallback(() => {
+    const snap = scoreUndoStackRef.current.pop();
+    if (!snap) return;
+    scoreRedoStackRef.current.push(
+      contestantsRef.current.map((c) => ({ ...c })),
+    );
+    setContestants(snap);
+    setScoreHistoryEpoch((e) => e + 1);
+  }, []);
+
+  const redoScoreChange = useCallback(() => {
+    const snap = scoreRedoStackRef.current.pop();
+    if (!snap) return;
+    scoreUndoStackRef.current.push(
+      contestantsRef.current.map((c) => ({ ...c })),
+    );
+    setContestants(snap);
+    setScoreHistoryEpoch((e) => e + 1);
+  }, []);
+
+  const undoScoreDisabled = useMemo(
+    () => scoreUndoStackRef.current.length === 0,
+    [scoreHistoryEpoch],
+  );
+  const redoScoreDisabled = useMemo(
+    () => scoreRedoStackRef.current.length === 0,
+    [scoreHistoryEpoch],
+  );
 
   useEffect(() => {
     if (!manualInviteUrl) return;
@@ -248,6 +306,13 @@ export function HostGameClient({
       port: buzzerPort,
     });
   }, [buzzerLanHost, buzzerPort]);
+
+  const activeBuzzQueueIndex = useMemo(() => {
+    const i = buzzQueue.findIndex(
+      (e) => !dismissedBuzzPlayerIds.has(e.playerId),
+    );
+    return i >= 0 ? i : null;
+  }, [buzzQueue, dismissedBuzzPlayerIds]);
 
   useEffect(() => {
     let cancelled = false;
@@ -496,23 +561,95 @@ export function HostGameClient({
           | null
           | undefined;
         if (
-          fb &&
-          typeof fb.name === "string" &&
-          typeof fb.id === "string" &&
-          typeof fb.at === "number"
+          !(
+            fb &&
+            typeof fb.name === "string" &&
+            typeof fb.id === "string" &&
+            typeof fb.at === "number"
+          )
         ) {
-          setFirstBuzz({ name: fb.name, playerId: fb.id, at: fb.at });
-        } else {
-          setFirstBuzz(null);
           setBuzzQueue([]);
+          setDismissedBuzzPlayerIds(new Set());
         }
+        const pauseRaw = msg.clueTimerPauseRemainingMs;
+        const pauseMs =
+          typeof pauseRaw === "number" && Number.isFinite(pauseRaw)
+            ? Math.max(0, Math.trunc(pauseRaw))
+            : 0;
+        setCluePauseRemainingMs(pauseMs > 0 ? pauseMs : null);
+        const clueEnds =
+          typeof msg.clueTimerEndsAt === "number" &&
+          Number.isFinite(msg.clueTimerEndsAt)
+            ? Math.trunc(msg.clueTimerEndsAt)
+            : null;
+        setClueTimerEndsAt(
+          pauseMs > 0
+            ? null
+            : clueEnds !== null && clueEnds > 0
+              ? clueEnds
+              : null,
+        );
+      }
+      if (msg.type === "clueTimer") {
+        const ends =
+          typeof msg.endsAt === "number" && Number.isFinite(msg.endsAt)
+            ? Math.trunc(msg.endsAt)
+            : null;
+        if (ends !== null && ends > 0) {
+          setClueTimerEndsAt(ends);
+          setCluePauseRemainingMs(null);
+          setClueTimerNotice(null);
+        }
+      }
+      if (msg.type === "clueTimerPaused") {
+        const r =
+          typeof msg.remainingMs === "number" && Number.isFinite(msg.remainingMs)
+            ? Math.max(0, Math.trunc(msg.remainingMs))
+            : 0;
+        if (r > 0) {
+          setCluePauseRemainingMs(r);
+          setClueTimerEndsAt(null);
+        }
+      }
+      if (msg.type === "clueTimerExpired") {
+        setClueTimerEndsAt(null);
+        setCluePauseRemainingMs(null);
+        setClueHostSecondsLeft(null);
+        setClueTimerNotice("Time's up — buzzing locked.");
+        window.setTimeout(() => setClueTimerNotice(null), 6000);
+      }
+      if (msg.type === "dailyDoubleHit") {
+        const roundRaw =
+          typeof msg.round === "number" && Number.isFinite(msg.round)
+            ? Math.trunc(msg.round)
+            : 0;
+        const colRaw =
+          typeof msg.col === "number" && Number.isFinite(msg.col)
+            ? Math.trunc(msg.col)
+            : -1;
+        const rowRaw =
+          typeof msg.row === "number" && Number.isFinite(msg.row)
+            ? Math.trunc(msg.row)
+            : -1;
+        const multRaw =
+          typeof msg.multiplier === "number" && Number.isFinite(msg.multiplier)
+            ? Math.max(1, Math.trunc(msg.multiplier))
+            : 2;
+        if ((roundRaw === 1 || roundRaw === 2) && colRaw >= 0 && rowRaw >= 0) {
+          setDailyDoubleCell({
+            round: roundRaw,
+            col: colRaw,
+            row: rowRaw,
+          });
+        }
+        setDdLockedBanner(`DAILY DOUBLE! This clue is worth ${multRaw}x points.`);
+        setClueTimerNotice("Daily Double active.");
       }
       if (msg.type === "firstBuzz") {
         const name = typeof msg.name === "string" ? msg.name : "Player";
         const playerId =
           typeof msg.playerId === "string" ? msg.playerId : "?";
         const at = typeof msg.at === "number" ? msg.at : Date.now();
-        setFirstBuzz({ name, playerId, at });
         setBuzzQueue((prev) => {
           if (prev.some((p) => p.playerId === playerId)) return prev;
           return [...prev, { name, playerId, at }];
@@ -625,16 +762,14 @@ export function HostGameClient({
     if (setupPhase) return;
     if (gamePhase === "finalJeopardy") return;
     if (cluePhase === "question") {
-      setFirstBuzz(null);
       setBuzzQueue([]);
-      setBuzzQueuePriorityIndex(0);
+      setDismissedBuzzPlayerIds(new Set());
       sendHostWs({ type: "unlock" });
     } else if (cluePhase === "answer") {
-      sendHostWs({ type: "lock" });
+      /* Keep buzzers unlocked so players can buzz again after an incorrect response. */
     } else {
-      setFirstBuzz(null);
       setBuzzQueue([]);
-      setBuzzQueuePriorityIndex(0);
+      setDismissedBuzzPlayerIds(new Set());
       sendHostWs({ type: "resetRound" });
     }
   }, [cluePhase, setupPhase, sendHostWs, gamePhase]);
@@ -665,6 +800,43 @@ export function HostGameClient({
   }, [gamePhase, fjUiPhase, fjAnswerEndsAt, sendHostWs]);
 
   useEffect(() => {
+    if (setupPhase || gamePhase === "finalJeopardy") {
+      setClueHostSecondsLeft(null);
+      return;
+    }
+    if (cluePhase !== "question") {
+      setClueHostSecondsLeft(null);
+      return;
+    }
+    if (cluePauseRemainingMs != null && cluePauseRemainingMs > 0) {
+      setClueHostSecondsLeft(
+        Math.max(1, Math.ceil(cluePauseRemainingMs / 1000)),
+      );
+      return;
+    }
+    if (!clueTimerEndsAt || clueTimerEndsAt <= Date.now()) {
+      setClueHostSecondsLeft(null);
+      return;
+    }
+    const tick = () => {
+      const left = Math.max(
+        0,
+        Math.ceil((clueTimerEndsAt - Date.now()) / 1000),
+      );
+      setClueHostSecondsLeft(left);
+    };
+    tick();
+    const id = window.setInterval(tick, 250);
+    return () => window.clearInterval(id);
+  }, [
+    clueTimerEndsAt,
+    cluePauseRemainingMs,
+    setupPhase,
+    gamePhase,
+    cluePhase,
+  ]);
+
+  useEffect(() => {
     if (fjUiPhase !== "grading" || !fjGradingBundle) return;
     const hasAny = contestants.some(
       (c) => buzzerScoreKey(c) in fjGradingBundle.wagers,
@@ -674,15 +846,18 @@ export function HostGameClient({
     }
   }, [fjUiPhase, fjGradingBundle, contestants]);
 
-  useEffect(() => {
-    setBuzzQueuePriorityIndex((i) => {
-      if (buzzQueue.length === 0) return 0;
-      return Math.min(i, buzzQueue.length - 1);
-    });
-  }, [buzzQueue]);
-
   const beginPlay = () => {
     if (!board) return;
+    scoreUndoStackRef.current = [];
+    scoreRedoStackRef.current = [];
+    setScoreHistoryEpoch((e) => e + 1);
+    setDailyDoubleCell(null);
+    setDdLockedBanner(null);
+    setClueTimerEndsAt(null);
+    setCluePauseRemainingMs(null);
+    setClueHostSecondsLeft(null);
+    setClueTimerNotice(null);
+    sendHostWs({ type: "beginBoardGame" });
     lastScoredCellRef.current = null;
     clearAwardPendingRefs();
     setAwardPending(null);
@@ -741,6 +916,12 @@ export function HostGameClient({
 
   const startFinalJeopardy = () => {
     if (!finalJeopardyClue) return;
+    setClueTimerEndsAt(null);
+    setCluePauseRemainingMs(null);
+    setClueHostSecondsLeft(null);
+    setClueTimerNotice(null);
+    setDailyDoubleCell(null);
+    setDdLockedBanner(null);
     setGamePhase("finalJeopardy");
     setFjUiPhase("wager");
     setFjWagersPlacedIds(new Set());
@@ -781,15 +962,16 @@ export function HostGameClient({
     const wager = fjGradingBundle.wagers[k];
     if (wager === undefined) return;
     const cid = fjActiveContestant.id;
-    setContestants((prev) =>
-      prev.map((p) => {
+    setContestants((prev) => {
+      pushScoreUndoSnapshot(prev);
+      return prev.map((p) => {
         if (p.id !== cid) return p;
         return {
           ...p,
           score: p.score + (correct ? wager : -wager),
         };
-      }),
-    );
+      });
+    });
     setFjGradedContestantIds((prev) => new Set(prev).add(cid));
   };
 
@@ -821,9 +1003,40 @@ export function HostGameClient({
   const selectCell = (col: number, row: number) => {
     if (!board || cluePhase !== "board") return;
     if (played[col][row]) return;
+    setDailyDoubleCell(null);
+    setDdLockedBanner(null);
+    const chosen = board.clues[col][row];
+    const category = board.categories[col] ?? `Category ${col + 1}`;
     lastScoredCellRef.current = null;
     clearAwardPendingRefs();
     setAwardPending(null);
+    sendHostWs({
+      type: "openClue",
+      round: gameRound,
+      col,
+      row,
+      clueValue: board.pointValues[row],
+    });
+    sendHostWs({
+      type: "echoClue",
+      phase: "question",
+      round: gameRound,
+      col,
+      row,
+      category,
+      value: board.pointValues[row],
+      text: chosen.question,
+    });
+    sendHostWs({
+      type: "echoClue",
+      phase: "answer",
+      round: gameRound,
+      col,
+      row,
+      category,
+      value: board.pointValues[row],
+      text: chosen.answer,
+    });
     setSelected({ col, row });
     setCluePhase("question");
   };
@@ -845,6 +1058,12 @@ export function HostGameClient({
   const questionLeft = () => {
     sendHostWs({ type: "lock" });
     sendHostWs({ type: "resetRound" });
+    setDailyDoubleCell(null);
+    setDdLockedBanner(null);
+    setClueTimerEndsAt(null);
+    setCluePauseRemainingMs(null);
+    setClueHostSecondsLeft(null);
+    setClueTimerNotice(null);
     lastScoredCellRef.current = null;
     clearAwardPendingRefs();
     setAwardPending(null);
@@ -853,7 +1072,10 @@ export function HostGameClient({
   };
 
   const questionRight = () => {
-    sendHostWs({ type: "lock" });
+    sendHostWs({ type: "stopClueTimer" });
+    setClueTimerEndsAt(null);
+    setCluePauseRemainingMs(null);
+    setClueHostSecondsLeft(null);
     clearAwardPendingRefs();
     setAwardPending(null);
     setCluePhase("answer");
@@ -862,6 +1084,12 @@ export function HostGameClient({
   const answerLeft = () => {
     sendHostWs({ type: "lock" });
     sendHostWs({ type: "resetRound" });
+    setDailyDoubleCell(null);
+    setDdLockedBanner(null);
+    setClueTimerEndsAt(null);
+    setCluePauseRemainingMs(null);
+    setClueHostSecondsLeft(null);
+    setClueTimerNotice(null);
     lastScoredCellRef.current = null;
     clearAwardPendingRefs();
     setAwardPending(null);
@@ -871,6 +1099,24 @@ export function HostGameClient({
 
   const consumeWithoutPoints = () => {
     if (!selected) return;
+    if (board) {
+      const { col, row } = selected;
+      const category = board.categories[col] ?? `Category ${col + 1}`;
+      sendHostWs({
+        type: "scoreAward",
+        playerName: null,
+        points: 0,
+        reason: "none",
+        category,
+        value: board.pointValues[row],
+      });
+    }
+    setDailyDoubleCell(null);
+    setDdLockedBanner(null);
+    setClueTimerEndsAt(null);
+    setCluePauseRemainingMs(null);
+    setClueHostSecondsLeft(null);
+    setClueTimerNotice(null);
     lastScoredCellRef.current = null;
     clearAwardPendingRefs();
     setAwardPending(null);
@@ -895,24 +1141,47 @@ export function HostGameClient({
       (c) => c.id === contestantId || c.buzzerId === contestantId,
     );
     if (i === -1) return;
+    const winnerName = contestants[i].name.trim() || "Player";
 
-    const pts = board.pointValues[row];
+    const isDailyDoubleActive =
+      dailyDoubleCell !== null &&
+      dailyDoubleCell.round === gameRound &&
+      dailyDoubleCell.col === col &&
+      dailyDoubleCell.row === row;
+    const pts = board.pointValues[row] * (isDailyDoubleActive ? 2 : 1);
     lastScoredCellRef.current = cellKey;
     clearAwardPendingRefs();
     setAwardPending(null);
 
-    const nextContestants = contestants.slice();
-    nextContestants[i] = {
-      ...contestants[i],
-      score: contestants[i].score + pts,
-    };
-    setContestants(nextContestants);
+    setContestants((prev) => {
+      pushScoreUndoSnapshot(prev);
+      const next = prev.slice();
+      next[i] = {
+        ...prev[i],
+        score: prev[i].score + pts,
+      };
+      return next;
+    });
+    const category = board.categories[col] ?? `Category ${col + 1}`;
+    sendHostWs({
+      type: "scoreAward",
+      playerName: winnerName,
+      points: pts,
+      reason: isDailyDoubleActive ? "daily-double" : "correct",
+      category,
+      value: board.pointValues[row],
+    });
+    setDailyDoubleCell(null);
+    setDdLockedBanner(null);
     setPlayed((prev) => {
       const next = prev.map((c) => [...c]);
       next[col][row] = true;
       return next;
     });
     sendHostWs({ type: "resetRound" });
+    setClueTimerEndsAt(null);
+    setCluePauseRemainingMs(null);
+    setClueHostSecondsLeft(null);
     setCluePhase("board");
     setSelected(null);
   };
@@ -939,6 +1208,15 @@ export function HostGameClient({
   };
 
   const returnToLobby = useCallback(() => {
+    scoreUndoStackRef.current = [];
+    scoreRedoStackRef.current = [];
+    setScoreHistoryEpoch((e) => e + 1);
+    setDailyDoubleCell(null);
+    setDdLockedBanner(null);
+    setClueTimerEndsAt(null);
+    setCluePauseRemainingMs(null);
+    setClueHostSecondsLeft(null);
+    setClueTimerNotice(null);
     lastScoredCellRef.current = null;
     clearAwardPendingRefs();
     setAwardPending(null);
@@ -969,13 +1247,6 @@ export function HostGameClient({
     pendingNobodyConfirmRef.current = true;
     pendingAwardPlayerIdRef.current = null;
     setAwardPending({ kind: "nobody" });
-  };
-
-  const advanceQueuedBuzzer = () => {
-    setBuzzQueuePriorityIndex((i) => {
-      if (buzzQueue.length <= 1) return 0;
-      return Math.min(i + 1, buzzQueue.length - 1);
-    });
   };
 
   if (setupPhase) {
@@ -1153,13 +1424,21 @@ export function HostGameClient({
               Room {roomCode}
             </span>
           </div>
-          <button
-            type="button"
-            onClick={returnToLobby}
-            className="shrink-0 rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--foreground)]"
-          >
-            Lobby
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <HostHeaderMenu
+              undoDisabled={undoScoreDisabled}
+              redoDisabled={redoScoreDisabled}
+              onUndo={undoScoreChange}
+              onRedo={redoScoreChange}
+            />
+            <button
+              type="button"
+              onClick={returnToLobby}
+              className="shrink-0 rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--foreground)]"
+            >
+              Lobby
+            </button>
+          </div>
         </header>
         <main className="relative flex flex-1 flex-col">
           <FinalJeopardyHostPanel
@@ -1216,6 +1495,21 @@ export function HostGameClient({
 
   const clue =
     selected !== null ? board.clues[selected.col][selected.row] : null;
+  const isSelectedDailyDouble =
+    selected !== null &&
+    dailyDoubleCell !== null &&
+    dailyDoubleCell.round === gameRound &&
+    dailyDoubleCell.col === selected.col &&
+    dailyDoubleCell.row === selected.row;
+
+  const markActiveBuzzIncorrect = (playerId: string) => {
+    setDismissedBuzzPlayerIds((prev) => {
+      const next = new Set(prev);
+      next.add(playerId);
+      return next;
+    });
+    sendHostWs({ type: "resumeClueTimer" });
+  };
 
   const buzzQueueColumn = (
     <div className="flex min-h-0 min-w-0 flex-col rounded-lg border border-[var(--border)] bg-[var(--surface)]/95 px-2 py-2 shadow-sm backdrop-blur sm:px-3">
@@ -1223,40 +1517,44 @@ export function HostGameClient({
         Buzz queue
       </h3>
       {buzzQueue.length ? (
-        <ol className="mx-auto mt-1 max-h-24 w-full list-inside overflow-y-auto text-xs text-[var(--foreground)] sm:text-sm">
-          {buzzQueue.map((entry, idx) => (
-            <li
-              key={`${entry.playerId}-${entry.at}-${idx}`}
-              className={
-                idx === buzzQueuePriorityIndex
-                  ? "font-semibold text-[var(--accent)]"
-                  : ""
-              }
-            >
-              {idx + 1}. {entry.name}
-            </li>
-          ))}
+        <ol className="mx-auto mt-1 max-h-24 w-full list-inside overflow-y-auto text-xs sm:text-sm">
+          {buzzQueue.map((entry, idx) => {
+            const dismissed = dismissedBuzzPlayerIds.has(entry.playerId);
+            const isActive = idx === activeBuzzQueueIndex;
+            return (
+              <li
+                key={`${entry.playerId}-${entry.at}-${idx}`}
+                className={`flex items-center justify-between gap-2 pl-1 ${
+                  dismissed
+                    ? "text-[var(--muted)] line-through opacity-80"
+                    : isActive
+                      ? "font-semibold text-[var(--accent)]"
+                      : "text-[var(--foreground)]"
+                }`}
+              >
+                <span className="min-w-0 truncate">
+                  {idx + 1}. {entry.name}
+                </span>
+                {isActive ? (
+                  <button
+                    type="button"
+                    aria-label={`${entry.name} answered incorrectly — resume timer`}
+                    title="Incorrect — resume question timer"
+                    onClick={() => markActiveBuzzIncorrect(entry.playerId)}
+                    className="shrink-0 rounded border border-[var(--border)] bg-[var(--background)] px-1.5 py-0 text-sm font-semibold leading-none text-[var(--foreground)] hover:opacity-90"
+                  >
+                    ×
+                  </button>
+                ) : null}
+              </li>
+            );
+          })}
         </ol>
       ) : (
         <p className="mt-1 text-center text-[0.65rem] text-[var(--muted)] sm:text-xs">
           No buzzes yet.
         </p>
       )}
-      {cluePhase === "answer" ? (
-        <div className="mt-2 flex justify-center">
-          <button
-            type="button"
-            onClick={advanceQueuedBuzzer}
-            disabled={
-              buzzQueue.length <= 1 ||
-              buzzQueuePriorityIndex >= buzzQueue.length - 1
-            }
-            className="w-full max-w-[11rem] rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-xs font-semibold text-[var(--foreground)] disabled:opacity-40 sm:text-sm"
-          >
-            Next queued contestant
-          </button>
-        </div>
-      ) : null}
     </div>
   );
 
@@ -1275,13 +1573,21 @@ export function HostGameClient({
             Room {roomCode}
           </span>
         </div>
-        <button
-          type="button"
-          onClick={returnToLobby}
-          className="shrink-0 rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--foreground)]"
-        >
-          Lobby
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <HostHeaderMenu
+            undoDisabled={undoScoreDisabled}
+            redoDisabled={redoScoreDisabled}
+            onUndo={undoScoreChange}
+            onRedo={redoScoreChange}
+          />
+          <button
+            type="button"
+            onClick={returnToLobby}
+            className="shrink-0 rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--foreground)]"
+          >
+            Lobby
+          </button>
+        </div>
       </header>
 
       <main className="relative flex flex-1 flex-col px-3 pb-52 pt-4 sm:px-6">
@@ -1344,9 +1650,58 @@ export function HostGameClient({
                 <p className="mb-2 text-center text-sm font-semibold text-[var(--foreground)]">
                   {board.categories[selected!.col]}
                 </p>
-                <p className="mb-4 text-center text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">
+                {clueTimerNotice ? (
+                  <p className="mb-2 text-center text-sm font-semibold text-[var(--accent)]">
+                    {clueTimerNotice}
+                  </p>
+                ) : null}
+                {ddLockedBanner ? (
+                  <div
+                    className={`mb-3 rounded-xl border px-3 py-2 text-center shadow-sm ${
+                      isSelectedDailyDouble
+                        ? "border-[var(--accent)] bg-[var(--accent)]/15"
+                        : "border-[var(--border)] bg-[var(--surface)]"
+                    }`}
+                  >
+                    <p
+                      className={`text-sm font-extrabold uppercase tracking-[0.12em] ${
+                        isSelectedDailyDouble
+                          ? "text-[var(--accent)]"
+                          : "text-[var(--foreground)]"
+                      }`}
+                    >
+                      {ddLockedBanner}
+                    </p>
+                    {isSelectedDailyDouble ? (
+                      <p className="mt-1 text-xs font-semibold text-[var(--foreground)]">
+                        Correct response awards double the clue value.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+                {cluePhase === "question" &&
+                clueHostSecondsLeft !== null &&
+                clueHostSecondsLeft > 0 ? (
+                  <p
+                    className={`mb-2 text-center font-mono text-2xl font-bold ${
+                      clueHostSecondsLeft <= 10
+                        ? "text-[var(--danger)]"
+                        : "text-[var(--foreground)]"
+                    }`}
+                  >
+                    {clueHostSecondsLeft}s
+                  </p>
+                ) : null}
+                <p
+                  className={`mb-4 text-center text-xs font-semibold uppercase tracking-[0.2em] ${
+                    isSelectedDailyDouble
+                      ? "text-[var(--accent)]"
+                      : "text-[var(--muted)]"
+                  }`}
+                >
                   {cluePhase === "question" ? "Question" : "Answer"} · $
                   {board.pointValues[selected!.row]}
+                  {isSelectedDailyDouble ? " ×2" : ""}
                 </p>
                 <p className="text-center text-2xl font-semibold leading-snug text-[var(--foreground)] sm:text-4xl">
                   {cluePhase === "question" ? clue.question : clue.answer}
@@ -1456,6 +1811,7 @@ export function HostGameClient({
             awardPending?.kind === "player" ? awardPending.id : null
           }
           onContestantPress={handleContestantStripPressUnified}
+          dailyDoublePickMode={false}
         />
       ) : null}
     </div>

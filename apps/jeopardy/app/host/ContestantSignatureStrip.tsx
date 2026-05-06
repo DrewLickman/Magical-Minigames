@@ -10,6 +10,7 @@ export function ContestantSignatureStrip({
   variant = "play",
   finalJeopardyGradingEnabled = false,
   finalJeopardyEligibleContestantIds = null,
+  dailyDoublePickMode = false,
 }: {
   contestants: Contestant[];
   awardEnabled: boolean;
@@ -19,6 +20,8 @@ export function ContestantSignatureStrip({
   finalJeopardyGradingEnabled?: boolean;
   /** When set in Final Jeopardy grading, only these contestant ids accept presses. */
   finalJeopardyEligibleContestantIds?: Set<string> | null;
+  /** Enable taps to choose who faces a Daily Double (contestants with a buzzer id). */
+  dailyDoublePickMode?: boolean;
 }) {
   if (!contestants.length) return null;
 
@@ -31,7 +34,13 @@ export function ContestantSignatureStrip({
             variant === "finalJeopardy" &&
             finalJeopardyGradingEnabled &&
             (finalJeopardyEligibleContestantIds?.has(c.id) ?? false);
-          const enabled = variant === "finalJeopardy" ? fjOk : awardEnabled;
+          const ddOk =
+            dailyDoublePickMode && Boolean(c.buzzerId?.trim());
+          const enabled = dailyDoublePickMode
+            ? ddOk
+            : variant === "finalJeopardy"
+              ? fjOk
+              : awardEnabled;
           return (
             <button
               key={c.id}
