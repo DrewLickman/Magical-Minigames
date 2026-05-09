@@ -19,6 +19,18 @@ function isPrivateIpv4(ip) {
   );
 }
 
+/**
+ * Full contestant invite URL (printed after a host connects with a room).
+ * @param {string} roomId
+ */
+function logContestantInviteForRoom(roomId) {
+  const lanIp = detectLanIpv4();
+  const hostForLinks = lanIp ?? "<your-lan-ip>";
+  const playerUrl = `http://${hostForLinks}:${HOST_APP_PORT}${BASE_PATH}/buzzer`;
+  const inviteUrl = `${playerUrl}?room=${encodeURIComponent(roomId)}&host=${encodeURIComponent(hostForLinks)}&port=${PORT}`;
+  console.log(`Invite link (room ${roomId}): ${inviteUrl}`);
+}
+
 function detectLanIpv4() {
   const interfaces = networkInterfaces();
   const candidates = [];
@@ -376,10 +388,10 @@ wss.on("listening", () => {
   console.log(`Host URL: ${hostUrl}`);
   console.log(`Player URL: ${playerUrl}`);
   console.log(
-    `Invite template: ${playerUrl}?room=<ROOMCODE>&host=${hostForLinks}&port=${PORT}`,
+    "Contestant invite URL (with your room code) prints when a host connects.",
   );
   console.log(
-    "Usage: open Host URL on the game machine, then share Player URL or Invite template with players.",
+    "Usage: open Host URL on the game machine, then share the invite link from below when the host joins.",
   );
   if (!lanIp) {
     console.log("LAN IP not detected automatically. Replace <your-lan-ip> using ipconfig.");
@@ -429,6 +441,7 @@ wss.on("connection", (ws) => {
         }
         room.host = ws;
         safeSend(ws, { type: "helloAck", role: "host", room: roomId });
+        logContestantInviteForRoom(roomId);
         announceHostState(room);
         return;
       }

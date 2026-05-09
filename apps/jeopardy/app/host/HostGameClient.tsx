@@ -1240,27 +1240,27 @@ export function HostGameClient({
 
   if (isVercelHost) {
     return (
-      <div className="mx-auto flex min-h-screen max-w-lg flex-col gap-6 px-6 py-16">
-        <h1 className="text-4xl font-bold tracking-tight text-[var(--foreground)]">
+      <div className="mx-auto flex min-h-screen max-w-xl flex-col gap-4 px-4 py-12 sm:px-6">
+        <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)] sm:text-3xl">
           Jeopardy
         </h1>
-        <p className="text-2xl font-semibold text-[var(--foreground)]">
+        <p className="text-base font-semibold whitespace-nowrap text-[var(--foreground)] sm:text-lg">
           Run this locally!
         </p>
-        <div className="space-y-6 text-lg text-[var(--foreground)]">
-          <p>
+        <div className="space-y-4 text-sm leading-snug text-[var(--foreground)] sm:text-base">
+          <p className="text-[var(--muted)]">
             Run{" "}
-            <code className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1 font-mono text-[var(--foreground)]">
+            <code className="whitespace-nowrap rounded border border-[var(--border)] bg-[var(--surface)] px-1.5 py-0.5 font-mono text-xs text-[var(--foreground)] sm:text-sm">
               npm run dev:jeopardy:party
             </code>
           </p>
-          <p>
+          <p className="text-[var(--muted)]">
             Open{" "}
-            <code className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1 font-mono text-[var(--foreground)]">
+            <code className="inline-block max-w-full break-all rounded border border-[var(--border)] bg-[var(--surface)] px-1.5 py-0.5 font-mono text-xs text-[var(--foreground)] sm:text-sm">
               http://&lt;host-lan-ip&gt;:&lt;port&gt;/jeopardy/host
             </code>
           </p>
-          <p className="text-[var(--muted)]">
+          <p className="text-xs text-[var(--muted)] sm:text-sm">
             Share the buzzer link with contestants.
           </p>
         </div>
