@@ -42,16 +42,6 @@ function emptyPlayed(): boolean[][] {
   return Array.from({ length: 5 }, () => Array.from({ length: 5 }, () => false));
 }
 
-function isLocalOrLanHost(hostname: string): boolean {
-  if (!hostname) return false;
-  if (hostname === "localhost" || hostname === "127.0.0.1") return true;
-  return (
-    /^10\./.test(hostname) ||
-    /^192\.168\./.test(hostname) ||
-    /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)
-  );
-}
-
 function buzzerScoreKey(c: Contestant): string {
   return typeof c.buzzerId === "string" && c.buzzerId.trim()
     ? c.buzzerId.trim()
@@ -100,7 +90,6 @@ export function HostGameClient({
     [],
   );
   const [runtimeHostname, setRuntimeHostname] = useState("");
-  const [templateCopied, setTemplateCopied] = useState(false);
   const [manualInviteUrl, setManualInviteUrl] = useState<string | null>(null);
   const manualInviteInputRef = useRef<HTMLInputElement | null>(null);
   const [awardPending, setAwardPending] = useState<AwardPendingState>(null);
@@ -291,11 +280,10 @@ export function HostGameClient({
       fjGradingOrder.every((c) => fjGradedContestantIds.has(c.id)),
   );
 
-  const showHostedGuidance = useMemo(() => {
+  /** Buzzers run on LAN; Vercel deploy cannot host the game — show local-run instructions only. */
+  const isVercelHost = useMemo(() => {
     const host = runtimeHostname.trim().toLowerCase();
-    if (!host) return false;
-    if (host.endsWith(".vercel.app")) return true;
-    return !isLocalOrLanHost(host);
+    return Boolean(host && host.endsWith(".vercel.app"));
   }, [runtimeHostname]);
 
   const hostWsConnectUrl = useMemo(() => {
@@ -315,6 +303,7 @@ export function HostGameClient({
   }, [buzzQueue, dismissedBuzzPlayerIds]);
 
   useEffect(() => {
+    if (isVercelHost) return;
     let cancelled = false;
     queueMicrotask(async () => {
       const persisted = loadPersistedHostState();
@@ -363,9 +352,10 @@ export function HostGameClient({
     return () => {
       cancelled = true;
     };
-  }, [templateHref]);
+  }, [templateHref, isVercelHost]);
 
   useEffect(() => {
+    if (isVercelHost) return;
     if (!setupPhase) return;
     let cancelled = false;
     queueMicrotask(async () => {
@@ -384,9 +374,10 @@ export function HostGameClient({
     return () => {
       cancelled = true;
     };
-  }, [setupPhase, roundTwoTemplateHref]);
+  }, [setupPhase, roundTwoTemplateHref, isVercelHost]);
 
   useEffect(() => {
+    if (isVercelHost) return;
     if (!setupPhase) return;
     let cancelled = false;
     queueMicrotask(async () => {
@@ -407,9 +398,10 @@ export function HostGameClient({
     return () => {
       cancelled = true;
     };
-  }, [setupPhase, finalJeopardyTemplateHref]);
+  }, [setupPhase, finalJeopardyTemplateHref, isVercelHost]);
 
   useEffect(() => {
+    if (isVercelHost) return;
     savePersistedHostState({
       contestants: contestants.map(({ id, name, score, buzzerId }) => ({
         id,
@@ -419,19 +411,21 @@ export function HostGameClient({
       })),
       boardJson: board ? boardToImportJson(board) : null,
     });
-  }, [contestants, board]);
+  }, [contestants, board, isVercelHost]);
 
   useEffect(() => {
+    if (isVercelHost) return;
     saveBuzzerConnectionPrefs({
       roomCode: normalizeRoomCode(roomCode),
       lanHost: buzzerLanHost.trim(),
       buzzerPort,
     });
-  }, [roomCode, buzzerLanHost, buzzerPort]);
+  }, [roomCode, buzzerLanHost, buzzerPort, isVercelHost]);
 
   useEffect(() => {
+    if (isVercelHost) return;
     setManualInviteUrl(null);
-  }, [roomCode, buzzerLanHost, buzzerPort]);
+  }, [roomCode, buzzerLanHost, buzzerPort, isVercelHost]);
 
   const buildContestantInviteUrl = useCallback((): string | null => {
     if (typeof window === "undefined") return null;
@@ -467,15 +461,6 @@ export function HostGameClient({
     }
   }, [buildContestantInviteUrl]);
 
-  const copyLocalHostTemplate = useCallback(async () => {
-    const template = "http://<host-lan-ip>:3003/jeopardy/host";
-    const ok = await copyTextToClipboard(template);
-    if (ok) {
-      setTemplateCopied(true);
-      window.setTimeout(() => setTemplateCopied(false), 1800);
-    }
-  }, []);
-
   const sendHostWs = useCallback((payload: Record<string, unknown>) => {
     const ws = wsRef.current;
     if (ws && ws.readyState === WebSocket.OPEN) {
@@ -484,6 +469,10 @@ export function HostGameClient({
   }, []);
 
   useEffect(() => {
+    if (isVercelHost) {
+      queueMicrotask(() => setBuzzerConnected(false));
+      return;
+    }
     const url = hostWsConnectUrl.trim();
     if (
       !roomCode.trim() ||
@@ -693,9 +682,10 @@ export function HostGameClient({
       }
       if (wsRef.current === ws) wsRef.current = null;
     };
-  }, [hostWsConnectUrl, roomCode]);
+  }, [hostWsConnectUrl, roomCode, isVercelHost]);
 
   useEffect(() => {
+    if (isVercelHost) return;
     if (!buzzerConnected || !contestants.length) return;
     const scores: Record<string, number> = {};
     for (const c of contestants) {
@@ -706,9 +696,10 @@ export function HostGameClient({
       scores[key] = c.score;
     }
     sendHostWs({ type: "pushScores", scores });
-  }, [buzzerConnected, contestants, sendHostWs]);
+  }, [buzzerConnected, contestants, sendHostWs, isVercelHost]);
 
   useEffect(() => {
+    if (isVercelHost) return;
     if (!connectedRoster.length) return;
     setContestants((prev) => {
       const next = [...prev];
@@ -752,9 +743,10 @@ export function HostGameClient({
       }
       return next;
     });
-  }, [connectedRoster]);
+  }, [connectedRoster, isVercelHost]);
 
   useEffect(() => {
+    if (isVercelHost) return;
     if (setupPhase) return;
     if (gamePhase === "finalJeopardy") return;
     if (cluePhase === "question") {
@@ -768,9 +760,10 @@ export function HostGameClient({
       setDismissedBuzzPlayerIds(new Set());
       sendHostWs({ type: "resetRound" });
     }
-  }, [cluePhase, setupPhase, sendHostWs, gamePhase]);
+  }, [cluePhase, setupPhase, sendHostWs, gamePhase, isVercelHost]);
 
   useEffect(() => {
+    if (isVercelHost) return;
     if (
       gamePhase !== "finalJeopardy" ||
       fjUiPhase !== "question" ||
@@ -793,7 +786,7 @@ export function HostGameClient({
     tick();
     const id = window.setInterval(tick, 250);
     return () => window.clearInterval(id);
-  }, [gamePhase, fjUiPhase, fjAnswerEndsAt, sendHostWs]);
+  }, [gamePhase, fjUiPhase, fjAnswerEndsAt, sendHostWs, isVercelHost]);
 
   useEffect(() => {
     if (setupPhase || gamePhase === "finalJeopardy") {
@@ -1245,6 +1238,36 @@ export function HostGameClient({
     setAwardPending({ kind: "nobody" });
   };
 
+  if (isVercelHost) {
+    return (
+      <div className="mx-auto flex min-h-screen max-w-lg flex-col gap-6 px-6 py-16">
+        <h1 className="text-4xl font-bold tracking-tight text-[var(--foreground)]">
+          Jeopardy
+        </h1>
+        <p className="text-2xl font-semibold text-[var(--foreground)]">
+          Run this locally!
+        </p>
+        <div className="space-y-6 text-lg text-[var(--foreground)]">
+          <p>
+            Run{" "}
+            <code className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1 font-mono text-[var(--foreground)]">
+              npm run dev:jeopardy:party
+            </code>
+          </p>
+          <p>
+            Open{" "}
+            <code className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1 font-mono text-[var(--foreground)]">
+              http://&lt;host-lan-ip&gt;:&lt;port&gt;/jeopardy/host
+            </code>
+          </p>
+          <p className="text-[var(--muted)]">
+            Share the buzzer link with contestants.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (setupPhase) {
     return (
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-10 xl:max-w-6xl">
@@ -1253,38 +1276,6 @@ export function HostGameClient({
             Jeopardy host
           </h1>
         </header>
-
-        {showHostedGuidance ? (
-          <section className="space-y-3 rounded-xl border border-[var(--accent)] bg-[var(--surface)] p-4">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--foreground)]">
-              Run this locally for buzzer mode
-            </h2>
-            <ol className="list-decimal space-y-1 pl-5 text-sm text-[var(--muted)]">
-              <li>
-                Run{" "}
-                <code className="font-mono text-[var(--foreground)]">
-                  npm run dev:jeopardy:party
-                </code>
-              </li>
-              <li>
-                Open{" "}
-                <code className="font-mono text-[var(--foreground)]">
-                  http://&lt;host-lan-ip&gt;:3003/jeopardy/host
-                </code>
-              </li>
-              <li>Share the buzzer link printed in the terminal.</li>
-            </ol>
-            <button
-              type="button"
-              onClick={() => void copyLocalHostTemplate()}
-              className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-2 text-sm font-medium text-[var(--foreground)]"
-            >
-              {templateCopied
-                ? "Local host template copied"
-                : "Copy local host URL template"}
-            </button>
-          </section>
-        ) : null}
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2 xl:items-stretch">
         <section className="flex flex-col space-y-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 xl:h-full">
