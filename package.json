@@ -12,6 +12,10 @@
     "dev:spyfall": "npm run dev --workspace=spyfall",
     "dev:jeopardy": "npm run dev --workspace=jeopardy",
     "dev:jeopardy:party": "npm run dev:party --workspace=jeopardy",
+    "lint": "npm run lint --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
     "smoke:routes": "node ./scripts/smoke-routes.mjs"
   },
   "devDependencies": {

@@ -106,7 +106,17 @@ export function HostGameClient({
   const contestantsRef = useRef(contestants);
   const scoreUndoStackRef = useRef<Contestant[][]>([]);
   const scoreRedoStackRef = useRef<Contestant[][]>([]);
-  const [scoreHistoryEpoch, setScoreHistoryEpoch] = useState(0);
+  const [scoreStackLengths, setScoreStackLengths] = useState({
+    undo: 0,
+    redo: 0,
+  });
+
+  const refreshScoreStackLengths = useCallback(() => {
+    setScoreStackLengths({
+      undo: scoreUndoStackRef.current.length,
+      redo: scoreRedoStackRef.current.length,
+    });
+  }, []);
   const [clueTimerEndsAt, setClueTimerEndsAt] = useState<number | null>(null);
   const [cluePauseRemainingMs, setCluePauseRemainingMs] = useState<
     number | null
@@ -158,7 +168,9 @@ export function HostGameClient({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    setRuntimeHostname(window.location.hostname);
+    queueMicrotask(() =>
+      setRuntimeHostname(window.location.hostname),
+    );
   }, []);
 
   function pushScoreUndoSnapshot(prev: Contestant[]) {
@@ -167,7 +179,7 @@ export function HostGameClient({
     if (scoreUndoStackRef.current.length > 50) {
       scoreUndoStackRef.current.shift();
     }
-    setScoreHistoryEpoch((e) => e + 1);
+    refreshScoreStackLengths();
   }
 
   const undoScoreChange = useCallback(() => {
@@ -177,8 +189,8 @@ export function HostGameClient({
       contestantsRef.current.map((c) => ({ ...c })),
     );
     setContestants(snap);
-    setScoreHistoryEpoch((e) => e + 1);
-  }, []);
+    refreshScoreStackLengths();
+  }, [refreshScoreStackLengths]);
 
   const redoScoreChange = useCallback(() => {
     const snap = scoreRedoStackRef.current.pop();
@@ -187,17 +199,11 @@ export function HostGameClient({
       contestantsRef.current.map((c) => ({ ...c })),
     );
     setContestants(snap);
-    setScoreHistoryEpoch((e) => e + 1);
-  }, []);
+    refreshScoreStackLengths();
+  }, [refreshScoreStackLengths]);
 
-  const undoScoreDisabled = useMemo(
-    () => scoreUndoStackRef.current.length === 0,
-    [scoreHistoryEpoch],
-  );
-  const redoScoreDisabled = useMemo(
-    () => scoreRedoStackRef.current.length === 0,
-    [scoreHistoryEpoch],
-  );
+  const undoScoreDisabled = scoreStackLengths.undo === 0;
+  const redoScoreDisabled = scoreStackLengths.redo === 0;
 
   useEffect(() => {
     if (!manualInviteUrl) return;
@@ -424,7 +430,7 @@ export function HostGameClient({
 
   useEffect(() => {
     if (isVercelHost) return;
-    setManualInviteUrl(null);
+    queueMicrotask(() => setManualInviteUrl(null));
   }, [roomCode, buzzerLanHost, buzzerPort, isVercelHost]);
 
   const buildContestantInviteUrl = useCallback((): string | null => {
@@ -701,48 +707,50 @@ export function HostGameClient({
   useEffect(() => {
     if (isVercelHost) return;
     if (!connectedRoster.length) return;
-    setContestants((prev) => {
-      const next = [...prev];
-      for (const r of connectedRoster) {
-        const byBuzzer = next.findIndex(
-          (c) => c.id === r.id || c.buzzerId === r.id,
-        );
-        if (byBuzzer !== -1) {
-          next[byBuzzer] = {
-            ...next[byBuzzer],
-            id: r.id,
-            buzzerId: r.id,
-            name: r.name,
-            signatureImage: r.signatureImage ?? next[byBuzzer].signatureImage,
-          };
-          continue;
+    queueMicrotask(() =>
+      setContestants((prev) => {
+        const next = [...prev];
+        for (const r of connectedRoster) {
+          const byBuzzer = next.findIndex(
+            (c) => c.id === r.id || c.buzzerId === r.id,
+          );
+          if (byBuzzer !== -1) {
+            next[byBuzzer] = {
+              ...next[byBuzzer],
+              id: r.id,
+              buzzerId: r.id,
+              name: r.name,
+              signatureImage: r.signatureImage ?? next[byBuzzer].signatureImage,
+            };
+            continue;
+          }
+          const byName = next.findIndex(
+            (c) =>
+              !c.buzzerId &&
+              c.name.trim().toLowerCase() === r.name.trim().toLowerCase(),
+          );
+          if (byName !== -1) {
+            const keepScore = next[byName].score;
+            next[byName] = {
+              id: r.id,
+              buzzerId: r.id,
+              name: r.name,
+              score: keepScore,
+              signatureImage: r.signatureImage,
+            };
+          } else {
+            next.push({
+              id: r.id,
+              buzzerId: r.id,
+              name: r.name,
+              score: 0,
+              signatureImage: r.signatureImage,
+            });
+          }
         }
-        const byName = next.findIndex(
-          (c) =>
-            !c.buzzerId &&
-            c.name.trim().toLowerCase() === r.name.trim().toLowerCase(),
-        );
-        if (byName !== -1) {
-          const keepScore = next[byName].score;
-          next[byName] = {
-            id: r.id,
-            buzzerId: r.id,
-            name: r.name,
-            score: keepScore,
-            signatureImage: r.signatureImage,
-          };
-        } else {
-          next.push({
-            id: r.id,
-            buzzerId: r.id,
-            name: r.name,
-            score: 0,
-            signatureImage: r.signatureImage,
-          });
-        }
-      }
-      return next;
-    });
+        return next;
+      }),
+    );
   }, [connectedRoster, isVercelHost]);
 
   useEffect(() => {
@@ -750,14 +758,18 @@ export function HostGameClient({
     if (setupPhase) return;
     if (gamePhase === "finalJeopardy") return;
     if (cluePhase === "question") {
-      setBuzzQueue([]);
-      setDismissedBuzzPlayerIds(new Set());
+      queueMicrotask(() => {
+        setBuzzQueue([]);
+        setDismissedBuzzPlayerIds(new Set());
+      });
       sendHostWs({ type: "unlock" });
     } else if (cluePhase === "answer") {
       /* Keep buzzers unlocked so players can buzz again after an incorrect response. */
     } else {
-      setBuzzQueue([]);
-      setDismissedBuzzPlayerIds(new Set());
+      queueMicrotask(() => {
+        setBuzzQueue([]);
+        setDismissedBuzzPlayerIds(new Set());
+      });
       sendHostWs({ type: "resetRound" });
     }
   }, [cluePhase, setupPhase, sendHostWs, gamePhase, isVercelHost]);
@@ -769,7 +781,7 @@ export function HostGameClient({
       fjUiPhase !== "question" ||
       fjAnswerEndsAt == null
     ) {
-      setFjHostSecondsLeft(null);
+      queueMicrotask(() => setFjHostSecondsLeft(null));
       return;
     }
     const tick = () => {
@@ -790,21 +802,23 @@ export function HostGameClient({
 
   useEffect(() => {
     if (setupPhase || gamePhase === "finalJeopardy") {
-      setClueHostSecondsLeft(null);
+      queueMicrotask(() => setClueHostSecondsLeft(null));
       return;
     }
     if (cluePhase !== "question") {
-      setClueHostSecondsLeft(null);
+      queueMicrotask(() => setClueHostSecondsLeft(null));
       return;
     }
     if (cluePauseRemainingMs != null && cluePauseRemainingMs > 0) {
-      setClueHostSecondsLeft(
-        Math.max(1, Math.ceil(cluePauseRemainingMs / 1000)),
+      queueMicrotask(() =>
+        setClueHostSecondsLeft(
+          Math.max(1, Math.ceil(cluePauseRemainingMs / 1000)),
+        ),
       );
       return;
     }
     if (!clueTimerEndsAt || clueTimerEndsAt <= Date.now()) {
-      setClueHostSecondsLeft(null);
+      queueMicrotask(() => setClueHostSecondsLeft(null));
       return;
     }
     const tick = () => {
@@ -831,7 +845,7 @@ export function HostGameClient({
       (c) => buzzerScoreKey(c) in fjGradingBundle.wagers,
     );
     if (!hasAny) {
-      setFjUiPhase("winner");
+      queueMicrotask(() => setFjUiPhase("winner"));
     }
   }, [fjUiPhase, fjGradingBundle, contestants]);
 
@@ -839,7 +853,7 @@ export function HostGameClient({
     if (!board) return;
     scoreUndoStackRef.current = [];
     scoreRedoStackRef.current = [];
-    setScoreHistoryEpoch((e) => e + 1);
+    refreshScoreStackLengths();
     setDailyDoubleCell(null);
     setDdLockedBanner(null);
     setClueTimerEndsAt(null);
@@ -1196,10 +1210,10 @@ export function HostGameClient({
     handleContestantStripPress(id);
   };
 
-  const returnToLobby = useCallback(() => {
+  function returnToLobby() {
     scoreUndoStackRef.current = [];
     scoreRedoStackRef.current = [];
-    setScoreHistoryEpoch((e) => e + 1);
+    refreshScoreStackLengths();
     setDailyDoubleCell(null);
     setDdLockedBanner(null);
     setClueTimerEndsAt(null);
@@ -1223,7 +1237,7 @@ export function HostGameClient({
     setSetupPhase(true);
     setCluePhase("board");
     setSelected(null);
-  }, []);
+  }
 
   const handleNobodyPress = () => {
     if (pendingNobodyConfirmRef.current) {

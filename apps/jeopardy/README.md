@@ -31,6 +31,10 @@ Env (optional):
 - `NEXT_PUBLIC_BASE_PATH=/jeopardy` (default)
 - `NEXT_PUBLIC_JEOPARDY_BUZZER_WS_URL` — fixed WebSocket URL for host + buzzer clients
 
+## Production buzzer hosting
+
+Vercel hosts the Jeopardy **UI** only. For remote contestants you must run [`scripts/buzzer-server.mjs`](scripts/buzzer-server.mjs) somewhere that keeps WebSockets online, terminate TLS for **`wss://`**, and set **`NEXT_PUBLIC_JEOPARDY_BUZZER_WS_URL`** on the Jeopardy project to that URL (then redeploy). See **[Jeopardy buzzer server (production)](../../docs/vercel-deployments.md#jeopardy-buzzer-server-production)** in the deployment runbook for the full checklist and security notes.
+
 ## Buzzer server only
 
 If you are not using `dev:jeopardy:party`:

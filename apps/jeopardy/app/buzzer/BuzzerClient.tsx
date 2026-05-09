@@ -417,7 +417,7 @@ export function BuzzerClient() {
 
   useEffect(() => {
     if (fjAnswerEndsAt == null || fjAnswerSubmitted || fjPhaseEnded) {
-      setFjSecondsLeft(null);
+      queueMicrotask(() => setFjSecondsLeft(null));
       return;
     }
     const tick = () => {
@@ -462,13 +462,15 @@ export function BuzzerClient() {
 
   useEffect(() => {
     if (cluePausedRemainingMs != null && cluePausedRemainingMs > 0) {
-      setClueSecondsLeft(
-        Math.max(1, Math.ceil(cluePausedRemainingMs / 1000)),
+      queueMicrotask(() =>
+        setClueSecondsLeft(
+          Math.max(1, Math.ceil(cluePausedRemainingMs / 1000)),
+        ),
       );
       return;
     }
     if (clueEndsAt == null) {
-      setClueSecondsLeft(null);
+      queueMicrotask(() => setClueSecondsLeft(null));
       return;
     }
     const tick = () => {

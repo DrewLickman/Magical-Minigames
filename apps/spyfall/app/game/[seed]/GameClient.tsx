@@ -61,6 +61,41 @@ export function GameClient({
     writeSpyfallState(lobbySeed, notes);
   }, [lobbySeed, notes]);
 
+  const roundView = useMemo(() => {
+    if (!lobbySeed || !roundSettings) return null;
+    return generateSpyfallRound({
+      lobbySeed,
+      players: roundSettings.players,
+      spies: roundSettings.spies,
+      playerSeat: roundSettings.playerSeat,
+    });
+  }, [lobbySeed, roundSettings]);
+
+  const goToNextGame = useCallback(() => {
+    if (!lobbySeed || !roundSettings) return;
+    const nextLobby = nextLobbySeed(lobbySeed);
+    const destination = buildGamePath(nextLobby, {
+      player: roundSettings.playerSeat,
+      players: roundSettings.players,
+      spies: roundSettings.spies,
+    });
+    router.push(destination);
+  }, [
+    lobbySeed,
+    roundSettings,
+    router,
+  ]);
+  const requestNextGame = useCallback(() => {
+    if (
+      !globalThis.confirm(
+        "Start the next lobby on this device? You will get a new lobby code.",
+      )
+    ) {
+      return;
+    }
+    goToNextGame();
+  }, [goToNextGame]);
+
   if (!lobbySeed) {
     return (
       <div className="mx-auto max-w-lg px-4 py-10">
@@ -77,7 +112,7 @@ export function GameClient({
     );
   }
 
-  if (!roundSettings) {
+  if (!roundSettings || !roundView) {
     return (
       <div className="mx-auto max-w-lg px-4 py-10">
         <p className="text-[var(--foreground)]">
@@ -97,38 +132,6 @@ export function GameClient({
       </div>
     );
   }
-
-  const roundView = generateSpyfallRound({
-    lobbySeed,
-    players: roundSettings.players,
-    spies: roundSettings.spies,
-    playerSeat: roundSettings.playerSeat,
-  });
-  const goToNextGame = useCallback(() => {
-    const nextLobby = nextLobbySeed(lobbySeed);
-    const destination = buildGamePath(nextLobby, {
-      player: roundSettings.playerSeat,
-      players: roundSettings.players,
-      spies: roundSettings.spies,
-    });
-    router.push(destination);
-  }, [
-    lobbySeed,
-    roundSettings.spies,
-    roundSettings.playerSeat,
-    roundSettings.players,
-    router,
-  ]);
-  const requestNextGame = useCallback(() => {
-    if (
-      !globalThis.confirm(
-        "Start the next lobby on this device? You will get a new lobby code.",
-      )
-    ) {
-      return;
-    }
-    goToNextGame();
-  }, [goToNextGame]);
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5 px-3 py-6 sm:px-4">

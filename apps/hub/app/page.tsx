@@ -19,7 +19,8 @@ export default function Home() {
 
   useEffect(() => {
     const stored = readPlayerProfile();
-    if (stored) setProfile(stored);
+    if (!stored) return;
+    queueMicrotask(() => setProfile(stored));
   }, []);
 
   const persist = (next: PlayerProfile) => {

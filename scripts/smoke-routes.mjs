@@ -22,12 +22,37 @@ const checks = [
 
 const failures = [];
 
+/** Guard against blank error pages and non-HTML proxies */
+function bodyLooksLikeHtml(text) {
+  return /<\s*html[\s>]/i.test(text) || /<!DOCTYPE\s+html/i.test(text);
+}
+
 for (const check of checks) {
   try {
     const res = await fetch(check.url, { redirect: "manual" });
     const ok = res.status >= 200 && res.status < 400;
     if (!ok) {
       failures.push(`${check.name}: ${check.url} -> ${res.status}`);
+      continue;
+    }
+    const contentType = res.headers.get("content-type") ?? "";
+    if (!contentType.includes("text/html")) {
+      failures.push(
+        `${check.name}: ${check.url} expected text/html, got ${contentType || "(missing)"}`,
+      );
+      continue;
+    }
+    const text = await res.text();
+    if (text.length < 256) {
+      failures.push(
+        `${check.name}: ${check.url} HTML body too short (${text.length} chars)`,
+      );
+      continue;
+    }
+    if (!bodyLooksLikeHtml(text)) {
+      failures.push(
+        `${check.name}: ${check.url} response body does not look like HTML`,
+      );
       continue;
     }
     console.log(`[ok] ${check.name}: ${check.url} -> ${res.status}`);

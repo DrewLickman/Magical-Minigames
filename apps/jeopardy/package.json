@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
     "buzzer-server": "node ./scripts/buzzer-server.mjs"
   },
   "dependencies": {
